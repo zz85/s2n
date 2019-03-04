@@ -77,19 +77,19 @@ And when invoking CMake for your project, do one of two things:
  1. Set the `CMAKE_INSTALL_PREFIX` variable with the path to your s2n build.
  2. If you have globally installed s2n, do nothing, it will automatically be found.
  
-## Building s2n with OpenSSL-1.1.0
+## Building s2n with OpenSSL-1.1.1
 
-To build s2n with OpenSSL-1.1.0, do the following:
+To build s2n with OpenSSL-1.1.1, do the following:
 
 ```shell
 # We keep the build artifacts in the -build directory
 cd libcrypto-build
 
 # Download the latest version of OpenSSL
-curl -LO https://www.openssl.org/source/openssl-1.1.0-latest.tar.gz
-tar -xzvf openssl-1.1.0-latest.tar.gz
+curl -LO https://www.openssl.org/source/openssl-1.1.1-latest.tar.gz
+tar -xzvf openssl-1.1.1-latest.tar.gz
 
-# Build openssl libcrypto  (NOTE: check directory name 1.1.0-latest unpacked as)
+# Build openssl libcrypto  (NOTE: check directory name 1.1.1-latest unpacked as)
 cd openssl-1.1.0e
 ./config -fPIC no-shared              \
          no-md2 no-rc5 no-rfc3779 no-sctp no-ssl-trace no-zlib     \
