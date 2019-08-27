@@ -104,3 +104,22 @@ int s2n_negotiate_test_server_and_client(struct s2n_connection *server_conn, str
 int s2n_shutdown_test_server_and_client(struct s2n_connection *server_conn, struct s2n_connection *client_conn);
 
 int s2n_test_kem_with_kat(const struct s2n_kem *kem, const char *kat_file);
+
+#define RECORD_WRITE_CURSOR( stuffer, cursor ) do { cursor = stuffer->write_cursor; } while (0)
+
+#define EXPECT_STUFFER_BYTES_WRITTEN(stuffer, bytes, cursor) do { \
+    uint32_t bytes_written = stuffer->write_cursor - cursor;      \
+    EXPECT_EQUAL(bytes_written, bytes);                           \
+    RECORD_WRITE_CURSOR(stuffer, cursor);                         \
+} while (0)
+
+#define STUFFER_READ_U16_EXPECT_EQUAL( stuffer, expected ) do { \
+    uint16_t u16;                                               \
+    EXPECT_SUCCESS(s2n_stuffer_read_uint16(stuffer, &u16));     \
+    EXPECT_EQUAL(u16, expected);                                \
+} while (0)
+
+#define EXPECT_EQUAL_S2N_BLOB( blob1, blob2 ) do {              \
+    EXPECT_EQUAL(blob1.size, blob2.size);                       \
+    EXPECT_BYTEARRAY_EQUAL(blob1.data, blob2.data, blob1.size); \
+} while (0)

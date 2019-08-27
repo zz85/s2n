@@ -15,12 +15,13 @@
 
 #pragma once
 
-#include "tls/extensions/s2n_key_share.h"
 #include "tls/s2n_connection.h"
 #include "stuffer/s2n_stuffer.h"
 
-extern int s2n_client_key_share_init();
-extern int s2n_extensions_client_key_share_recv(struct s2n_connection *conn, struct s2n_stuffer *extension);
-extern int s2n_extensions_client_key_share_size(struct s2n_connection *conn);
-extern int s2n_extensions_client_key_share_send(struct s2n_connection *conn, struct s2n_stuffer *out);
+#define S2N_SIZE_OF_EXTENSION_TYPE          2
+#define S2N_SIZE_OF_EXTENSION_DATA_SIZE     2
+#define S2N_SIZE_OF_CLIENT_SHARES_SIZE      2
+#define S2N_SIZE_OF_NAMED_GROUP             2
+#define S2N_SIZE_OF_KEY_SHARE_SIZE          2
 
+extern int s2n_ecdhe_parameters_send(struct s2n_ecc_params *ecc_params, struct s2n_stuffer *out);

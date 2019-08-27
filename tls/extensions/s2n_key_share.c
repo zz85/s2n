@@ -13,14 +13,21 @@
  * permissions and limitations under the License.
  */
 
-#pragma once
-
 #include "tls/extensions/s2n_key_share.h"
-#include "tls/s2n_connection.h"
-#include "stuffer/s2n_stuffer.h"
+#include "tls/s2n_tls.h"
+#include "utils/s2n_safety.h"
 
-extern int s2n_client_key_share_init();
-extern int s2n_extensions_client_key_share_recv(struct s2n_connection *conn, struct s2n_stuffer *extension);
-extern int s2n_extensions_client_key_share_size(struct s2n_connection *conn);
-extern int s2n_extensions_client_key_share_send(struct s2n_connection *conn, struct s2n_stuffer *out);
+int s2n_ecdhe_parameters_send(struct s2n_ecc_params *ecc_params, struct s2n_stuffer *out)
+{
+    notnull_check(out);
+    notnull_check(ecc_params);
+    notnull_check(ecc_params->negotiated_curve);
 
+    GUARD(s2n_stuffer_write_uint16(out, ecc_params->negotiated_curve->iana_id));
+    GUARD(s2n_stuffer_write_uint16(out, ecc_params->negotiated_curve->share_size));
+
+    GUARD(s2n_ecc_generate_ephemeral_key(ecc_params));
+    GUARD(s2n_ecc_write_ecc_params_point(ecc_params, out));
+
+    return 0;
+}

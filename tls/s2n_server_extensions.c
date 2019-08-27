@@ -29,6 +29,9 @@
 #include "utils/s2n_safety.h"
 #include "utils/s2n_blob.h"
 
+#include "tls/extensions/s2n_server_key_share.h"
+
+
 static int s2n_recv_server_server_name(struct s2n_connection *conn, struct s2n_stuffer *extension);
 static int s2n_recv_server_renegotiation_info_ext(struct s2n_connection *conn, struct s2n_stuffer *extension);
 static int s2n_recv_server_alpn(struct s2n_connection *conn, struct s2n_stuffer *extension);
@@ -70,6 +73,10 @@ int s2n_server_extensions_send(struct s2n_connection *conn, struct s2n_stuffer *
     }
     if (s2n_server_sending_nst(conn)) {
         total_size += 4;
+    }
+
+    if (conn->actual_protocol_version >= S2N_TLS13) {
+        total_size += s2n_extensions_server_key_share_send_size(conn);
     }
 
     if (total_size == 0) {
@@ -130,6 +137,12 @@ int s2n_server_extensions_send(struct s2n_connection *conn, struct s2n_stuffer *
         GUARD(s2n_stuffer_write_uint16(out, 0));
     }
 
+    /* TLS13 extensions */
+    if (conn->actual_protocol_version >= S2N_TLS13) {
+        /* Write Key Share */
+        s2n_extensions_server_key_share_send(conn, out);
+    }
+
     return 0;
 }
 
@@ -176,6 +189,9 @@ int s2n_server_extensions_recv(struct s2n_connection *conn, struct s2n_blob *ext
             break;
         case TLS_EXTENSION_SESSION_TICKET:
             GUARD(s2n_recv_server_session_ticket_ext(conn, &extension));
+            break;
+        case TLS_EXTENSION_KEY_SHARE:
+            GUARD(s2n_extensions_server_key_share_recv(conn, &extension));
             break;
         }
     }
