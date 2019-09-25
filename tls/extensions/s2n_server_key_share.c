@@ -17,6 +17,7 @@
 
 #include "tls/s2n_client_extensions.h"
 #include "utils/s2n_safety.h"
+#include "tls/s2n_tls.h"
 
 /*
  * Check whether client has sent a corresponding curve and key_share
@@ -76,12 +77,15 @@ int s2n_extensions_server_key_share_send_size(struct s2n_connection *conn)
  */
 int s2n_extensions_server_key_share_send(struct s2n_connection *conn, struct s2n_stuffer *out)
 {
+    
+    printf("[server_key_share] s2n_extensions_server_key_share_send\n");
     GUARD(s2n_extensions_server_key_share_send_check(conn));
     notnull_check(out);
 
     GUARD(s2n_stuffer_write_uint16(out, TLS_EXTENSION_KEY_SHARE));
     GUARD(s2n_stuffer_write_uint16(out, s2n_extensions_server_key_share_send_size(conn) - S2N_SIZE_OF_EXTENSION_TYPE));
 
+    printf("[server_key_share] sending ecdhe... \n");
     GUARD(s2n_ecdhe_parameters_send(&conn->secure.server_ecc_params, out));
 
     return 0;
@@ -94,6 +98,7 @@ int s2n_extensions_server_key_share_send(struct s2n_connection *conn, struct s2n
  */
 int s2n_extensions_server_key_share_recv(struct s2n_connection *conn, struct s2n_stuffer *extension)
 {
+    
     notnull_check(conn);
     notnull_check(extension);
 
@@ -101,9 +106,11 @@ int s2n_extensions_server_key_share_recv(struct s2n_connection *conn, struct s2n
 
     /* Make sure we can read the next 4 bytes */
     S2N_ERROR_IF(s2n_stuffer_data_available(extension) < 4, S2N_ERR_BAD_KEY_SHARE);
-
     GUARD(s2n_stuffer_read_uint16(extension, &named_group));
     GUARD(s2n_stuffer_read_uint16(extension, &share_size));
+
+    printf("[server_key_share] named_group: %d\n", named_group);
+    printf("[server_key_share] share_size: %d\n", share_size);
 
     /* and the remaining amount of bytes */
     S2N_ERROR_IF(s2n_stuffer_data_available(extension) < share_size, S2N_ERR_BAD_KEY_SHARE);
@@ -114,6 +121,7 @@ int s2n_extensions_server_key_share_recv(struct s2n_connection *conn, struct s2n
         if (named_group == s2n_ecc_supported_curves[i].iana_id) {
             supported_curve_index = i;
             supported_curve = &s2n_ecc_supported_curves[i];
+            printf("[server_key_share] Selection: %d\n", i);
             break;
         }
     }

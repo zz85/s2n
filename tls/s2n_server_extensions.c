@@ -47,6 +47,7 @@ static int s2n_recv_server_session_ticket_ext(struct s2n_connection *conn, struc
 
 int s2n_server_extensions_send(struct s2n_connection *conn, struct s2n_stuffer *out)
 {
+    printf("====s2n_server_extensions_send 0==\n");
     uint16_t total_size = 0;
 
     const uint8_t application_protocol_len = strlen(conn->application_protocol);
@@ -65,7 +66,13 @@ int s2n_server_extensions_send(struct s2n_connection *conn, struct s2n_stuffer *
         total_size += 5;
     }
 
-    total_size += s2n_kex_server_extension_size(conn->secure.cipher_suite->key_exchange_alg, conn);
+    if (conn->secure.cipher_suite != NULL && conn->secure.cipher_suite->key_exchange_alg) {
+        int r = s2n_kex_server_extension_size(conn->secure.cipher_suite->key_exchange_alg, conn);
+
+        if (r > 0) {
+            total_size += r;
+        }
+    }
 
     if (s2n_server_can_send_sct_list(conn)) {
         total_size += 4 + conn->handshake_params.our_chain_and_key->sct_list.size;
@@ -77,10 +84,14 @@ int s2n_server_extensions_send(struct s2n_connection *conn, struct s2n_stuffer *
         total_size += 4;
     }
 
+    printf("====s2n_server_extensions_send ==\n");
     if (conn->actual_protocol_version >= S2N_TLS13) {
         total_size += s2n_extensions_server_supported_versions_size();
         total_size += s2n_extensions_server_key_share_send_size(conn);
     }
+
+    printf(" total_size %d\n", total_size);
+
 
     if (total_size == 0) {
         return 0;
@@ -99,7 +110,9 @@ int s2n_server_extensions_send(struct s2n_connection *conn, struct s2n_stuffer *
         GUARD(s2n_stuffer_write_uint16(out, 0));
     }
 
-    GUARD(s2n_kex_write_server_extension(conn->secure.cipher_suite->key_exchange_alg, conn, out));
+    if (conn->secure.cipher_suite != NULL && conn->secure.cipher_suite->key_exchange_alg) {
+        GUARD(s2n_kex_write_server_extension(conn->secure.cipher_suite->key_exchange_alg, conn, out));
+    }
 
     /* Write the renegotiation_info extension */
     if (conn->secure_renegotiation) {
@@ -155,6 +168,7 @@ int s2n_server_extensions_send(struct s2n_connection *conn, struct s2n_stuffer *
 
 int s2n_server_extensions_recv(struct s2n_connection *conn, struct s2n_blob *extensions)
 {
+    printf("==s2n_server_extensions_recv==\n");
     struct s2n_stuffer in = {0};
 
     GUARD(s2n_stuffer_init(&in, extensions));
@@ -199,11 +213,13 @@ int s2n_server_extensions_recv(struct s2n_connection *conn, struct s2n_blob *ext
             break;
         case TLS_EXTENSION_SUPPORTED_VERSIONS:
             if (s2n_is_tls13_enabled()) {
+                printf("== TLS_EXTENSION_SUPPORTED_VERSIONS ==\n");
                 GUARD(s2n_extensions_server_supported_versions_recv(conn, &extension));
             }
             break;
         case TLS_EXTENSION_KEY_SHARE:
             if (s2n_is_tls13_enabled()) {
+                printf("== TLS_EXTENSION_KEY_SHARE ==\n");
                 GUARD(s2n_extensions_server_key_share_recv(conn, &extension));
             }
             break;

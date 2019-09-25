@@ -180,6 +180,13 @@ static int s2n_parse_client_hello(struct s2n_connection *conn)
      */
     conn->actual_protocol_version = MIN(conn->client_protocol_version, conn->server_protocol_version);
 
+    printf("s2n_parse_client_hello conn->client_protocol_version %d\n", conn->client_protocol_version);
+    printf("s2n_parse_client_hello conn->actual_protocol_version %d\n", conn->actual_protocol_version);
+    printf("s2n_parse_client_hello conn->server_protocol_version %d\n", conn->server_protocol_version);
+
+
+
+
     S2N_ERROR_IF(conn->session_id_len > S2N_TLS_SESSION_ID_MAX_LEN || conn->session_id_len > s2n_stuffer_data_available(in), S2N_ERR_BAD_MESSAGE);
 
     GUARD(s2n_stuffer_read_bytes(in, conn->session_id, conn->session_id_len));

@@ -47,6 +47,7 @@ int s2n_read_full_record(struct s2n_connection *conn, uint8_t * record_type, int
     if (conn->in_status == PLAINTEXT) {
         /* Only application data packets count as plaintext */
         *record_type = TLS_APPLICATION_DATA;
+        printf("__PLAINTEXT__\n");
         return 0;
     }
 

@@ -38,6 +38,7 @@
 
 int s2n_server_hello_recv(struct s2n_connection *conn)
 {
+    printf("====s2n_server_hello_recv ==\n");
     struct s2n_stuffer *in = &conn->handshake.io;
     uint8_t compression_method;
     uint8_t session_id_len;
@@ -71,9 +72,17 @@ int s2n_server_hello_recv(struct s2n_connection *conn)
         GUARD(s2n_server_extensions_recv(conn, &extensions));
     }
 
+    printf("conn->client_protocol_version %d\n", conn->client_protocol_version);
+    printf("conn->actual_protocol_version %d\n", conn->actual_protocol_version);
+    printf("session_id_len %d\n", session_id_len);
+    printf("conn->session_id_len %d\n", conn->session_id_len);
+    printf("cipher_suite_wire %s\n", cipher_suite_wire);
+    printf("conn->secure.cipher_suite->iana_value %s\n", conn->secure.cipher_suite->iana_value);
+    printf("compare %d\n", memcmp(session_id, conn->session_id, session_id_len));
+
     if (conn->server_protocol_version >= S2N_TLS13) {
         /* Check echoed session ID matches */
-        S2N_ERROR_IF(session_id_len != conn->session_id_len || !memcmp(session_id, conn->session_id, session_id_len), S2N_ERR_BAD_MESSAGE);
+        // S2N_ERROR_IF(session_id_len != conn->session_id_len || !memcmp(session_id, conn->session_id, session_id_len), S2N_ERR_BAD_MESSAGE);
         conn->actual_protocol_version = conn->server_protocol_version;
         GUARD(s2n_set_cipher_as_client(conn, cipher_suite_wire));
     } else {
@@ -137,6 +146,7 @@ int s2n_server_hello_recv(struct s2n_connection *conn)
 
 int s2n_server_hello_send(struct s2n_connection *conn)
 {
+    printf("====s2n_server_hello_send ==\n");
     struct s2n_stuffer *out = &conn->handshake.io;
     struct s2n_stuffer server_random = {0};
     struct s2n_blob b, r;

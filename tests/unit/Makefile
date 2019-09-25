@@ -13,7 +13,7 @@
 # permissions and limitations under the License.
 #
 
-SRCS=$(wildcard *.c)
+SRCS=$(wildcard *_fil*.c)
 OBJS=$(SRCS:.c=.o)
 TESTS=$(SRCS:.c=)
 VALGRIND_TESTS=$(SRCS:.c=.valgrind)

@@ -213,6 +213,7 @@ const struct s2n_kex s2n_hybrid_ecdhe_kem = {
 
 int s2n_kex_server_extension_size(const struct s2n_kex *kex, const struct s2n_connection *conn)
 {
+    notnull_check(kex);
     notnull_check(kex->get_server_extension_size);
     return kex->get_server_extension_size(conn);
 }

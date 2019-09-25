@@ -44,7 +44,8 @@ typedef enum {
     CLIENT_FINISHED,
     SERVER_CHANGE_CIPHER_SPEC,
     SERVER_FINISHED,
-    APPLICATION_DATA
+    APPLICATION_DATA,
+    SERVER_EE
 } message_type_t;
 
 struct s2n_handshake_parameters {

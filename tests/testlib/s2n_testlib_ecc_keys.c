@@ -21,9 +21,9 @@
 
 int s2n_public_ecc_keys_are_equal(struct s2n_ecc_params *params_1, struct s2n_ecc_params *params_2)
 {
+
     notnull_check(params_1);
     notnull_check(params_2);
-
     struct s2n_stuffer point_stuffer;
     int size = params_1->negotiated_curve->share_size;
 

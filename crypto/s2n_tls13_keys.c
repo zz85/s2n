@@ -118,6 +118,8 @@ int s2n_tls13_keys_init(struct s2n_tls13_keys *handshake, s2n_hmac_algorithm alg
     GUARD(s2n_blob_init(&handshake->derive_secret, handshake->derive_secret_bytes, handshake->size));
     GUARD(s2n_hmac_new(&handshake->hmac));
 
+    printf("handshake->size %d\n", handshake->size);
+
     return 0;
 }
 

@@ -18,7 +18,7 @@
 #include "tls/s2n_tls.h"
 #include "tls/s2n_tls_parameters.h"
 
-uint8_t s2n_highest_protocol_version = S2N_TLS12;
+uint8_t s2n_highest_protocol_version = S2N_TLS13;
 uint8_t s2n_unknown_protocol_version = S2N_UNKNOWN_PROTOCOL_VERSION;
 
 /*
@@ -37,3 +37,19 @@ uint16_t mfl_code_to_length[5] =
     2048,                            /* S2N_TLS_MAX_FRAG_LEN_2048 */
     4096,                            /* S2N_TLS_MAX_FRAG_LEN_4096 */
 };
+
+
+void print_hex(uint8_t *s, size_t len) {
+    printf("Hex: ");
+    for(int i = 0; i < len; i++) {
+        printf("%02x", s[i]);
+    }
+    printf("\n");
+
+    printf("Dec: ");
+    for(int i = 0; i < len; i++) {
+        printf("%d ", s[i]);
+    }
+
+    printf("\n");
+}

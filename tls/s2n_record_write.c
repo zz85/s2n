@@ -121,6 +121,7 @@ int s2n_record_write_protocol_version(struct s2n_connection *conn)
 
 int s2n_record_write(struct s2n_connection *conn, uint8_t content_type, struct s2n_blob *in)
 {
+    printf("s2n_record_write()\n");
     struct s2n_blob out, iv, aad;
     uint8_t padding = 0;
     uint16_t block_size = 0;
@@ -207,6 +208,7 @@ int s2n_record_write(struct s2n_connection *conn, uint8_t content_type, struct s
 
     /* If we're AEAD, write the sequence number as an IV, and generate the AAD */
     if (cipher_suite->record_alg->cipher->type == S2N_AEAD) {
+        printf("S2N_AEAD()\n");
         struct s2n_stuffer iv_stuffer = {0};
         iv.data = aad_iv;
         iv.size = sizeof(aad_iv);

@@ -12,6 +12,7 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
+#include <sys/param.h>
 
 #include "crypto/s2n_sequence.h"
 #include "crypto/s2n_cipher.h"
@@ -28,6 +29,9 @@
 
 #include "utils/s2n_safety.h"
 #include "utils/s2n_blob.h"
+
+#include <execinfo.h>
+#include <stdio.h>
 
 int s2n_sslv2_record_header_parse(
     struct s2n_connection *conn,
@@ -77,7 +81,11 @@ int s2n_record_header_parse(
      * match the negotiated version.
      */
 
-    S2N_ERROR_IF(conn->actual_protocol_version_established && conn->actual_protocol_version != version, S2N_ERR_BAD_MESSAGE);
+    printf("conn->actual_protocol_version_established %d\n", conn->actual_protocol_version_established);
+    printf("conn->actual_protocol_version %d\n", conn->actual_protocol_version);
+    printf("version %d\n", version);
+
+    S2N_ERROR_IF(conn->actual_protocol_version_established && MIN(conn->actual_protocol_version, 33) != version, S2N_ERR_BAD_MESSAGE);
     GUARD(s2n_stuffer_read_uint16(in, fragment_length));
 
     /* Some servers send fragments that are above the maximum length.  (e.g.
@@ -91,6 +99,15 @@ int s2n_record_header_parse(
 
 int s2n_record_parse(struct s2n_connection *conn)
 {
+    // void* callstack[128];
+    //  int i, frames = backtrace(callstack, 128);
+    //  char** strs = backtrace_symbols(callstack, frames);
+    //  for (i = 0; i < frames; ++i) {
+    //      printf("%s\n", strs[i]);
+    //  }
+    //  free(strs);
+
+    printf("s2n_record_parse()\n");
     const struct s2n_cipher_suite *cipher_suite = conn->client->cipher_suite;
     uint8_t *implicit_iv = conn->client->client_implicit_iv;
     struct s2n_hmac_state *mac = &conn->client->client_record_mac;
@@ -111,6 +128,7 @@ int s2n_record_parse(struct s2n_connection *conn)
 
     switch (cipher_suite->record_alg->cipher->type) {
     case S2N_AEAD:
+        printf("-- S2N_AEAD --\n");
         GUARD(s2n_record_parse_aead(cipher_suite, conn, content_type, encrypted_length, implicit_iv, mac, sequence_number, session_key));
         break;
     case S2N_CBC:
@@ -123,6 +141,7 @@ int s2n_record_parse(struct s2n_connection *conn)
         GUARD(s2n_record_parse_stream(cipher_suite, conn, content_type, encrypted_length, implicit_iv, mac, sequence_number, session_key));
         break;
     default:
+        printf("-- S2N_ERR_CIPHER_TYPE --\n");
         S2N_ERROR(S2N_ERR_CIPHER_TYPE);
         break;
     }

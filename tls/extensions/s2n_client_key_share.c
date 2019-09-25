@@ -64,6 +64,7 @@ int s2n_client_key_share_init()
 
 int s2n_extensions_client_key_share_recv(struct s2n_connection *conn, struct s2n_stuffer *extension)
 {
+    printf("---s2n_extensions_client_key_share_recv---\n");
     notnull_check(conn);
     notnull_check(extension);
 
@@ -89,6 +90,7 @@ int s2n_extensions_client_key_share_recv(struct s2n_connection *conn, struct s2n
             if (named_group == s2n_ecc_supported_curves[i].iana_id) {
                 supported_curve_index = i;
                 supported_curve = &s2n_ecc_supported_curves[i];
+                printf("YAY s2n_extensions_client_key_share_recv %d\n", i);
                 break;
             }
         }

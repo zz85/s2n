@@ -29,8 +29,11 @@
 #include "tls/s2n_alerts.h"
 #include "tls/s2n_tls.h"
 #include "tls/s2n_kex.h"
+#include "crypto/s2n_hkdf.h"
+#include "crypto/s2n_tls13_keys.h"
 
 #include "stuffer/s2n_stuffer.h"
+
 
 #include "utils/s2n_safety.h"
 #include "utils/s2n_socket.h"
@@ -53,6 +56,7 @@
 #define TLS_CLIENT_FINISHED           20
 #define TLS_SERVER_FINISHED           20  /* Same as CLIENT_FINISHED */
 #define TLS_SERVER_CERT_STATUS        22
+#define TLS13_EE 17
 
 struct s2n_handshake_action {
     uint8_t record_type;
@@ -63,7 +67,45 @@ struct s2n_handshake_action {
 
 /* Client and Server handlers for each message type we support.  
  * See http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-7 for the list of handshake message types
+ * 
+ * 
  */
+
+
+
+int bla_send(struct s2n_connection *conn)
+{
+    printf("bla_send\n");
+    return 0;
+}
+
+
+int bla_recv(struct s2n_connection *conn)
+{
+    printf("bla_recv\n");
+
+    printf("read_cursor %d\n", conn->handshake.io.read_cursor);
+    printf("write_cursor %d\n", conn->handshake.io.write_cursor);
+
+    
+
+    // uint8_t *our_version;
+    // int length = S2N_TLS_FINISHED_LEN;
+    // our_version = conn->handshake.server_finished;
+
+    // if (conn->actual_protocol_version == S2N_SSLv3) {
+    //     length = S2N_SSL_FINISHED_LEN;
+    // }
+
+    // uint8_t *their_version = s2n_stuffer_raw_read(&conn->handshake.io, length);
+    // notnull_check(their_version);
+
+    // S2N_ERROR_I
+
+    return 0;
+}
+
+
 static struct s2n_handshake_action state_machine[] = {
     /* message_type_t           = {Record type   Message type     Writer S2N_SERVER                S2N_CLIENT }  */
     [CLIENT_HELLO]              = {TLS_HANDSHAKE, TLS_CLIENT_HELLO, 'C', {s2n_client_hello_recv, s2n_client_hello_send}}, 
@@ -81,7 +123,8 @@ static struct s2n_handshake_action state_machine[] = {
     [CLIENT_FINISHED]           = {TLS_HANDSHAKE, TLS_CLIENT_FINISHED, 'C', {s2n_client_finished_recv, s2n_client_finished_send}},
     [SERVER_CHANGE_CIPHER_SPEC] = {TLS_CHANGE_CIPHER_SPEC, 0, 'S', {s2n_server_ccs_send, s2n_server_ccs_recv}}, 
     [SERVER_FINISHED]           = {TLS_HANDSHAKE, TLS_SERVER_FINISHED, 'S', {s2n_server_finished_send, s2n_server_finished_recv}},
-    [APPLICATION_DATA]          = {TLS_APPLICATION_DATA, 0, 'B', {NULL, NULL}}
+    [APPLICATION_DATA]          = {TLS_APPLICATION_DATA, 0, 'B', {NULL, NULL}},
+    [SERVER_EE] =                 {TLS_HANDSHAKE, TLS13_EE, 'S', {bla_send, bla_recv}},
 };
 
 #define MESSAGE_NAME_ENTRY(msg) [msg] = #msg
@@ -103,6 +146,7 @@ static const char *message_names[] = {
     MESSAGE_NAME_ENTRY(SERVER_CHANGE_CIPHER_SPEC),
     MESSAGE_NAME_ENTRY(SERVER_FINISHED),
     MESSAGE_NAME_ENTRY(APPLICATION_DATA),
+    MESSAGE_NAME_ENTRY(SERVER_EE),
 };
 
 /* We support different ordering of TLS Handshake messages, depending on what is being negotiated. There's also a dummy "INITIAL" handshake
@@ -129,9 +173,10 @@ static message_type_t handshakes[128][16] = {
 
     [NEGOTIATED | FULL_HANDSHAKE ] = {
             CLIENT_HELLO,
-            SERVER_HELLO, SERVER_CERT, SERVER_HELLO_DONE,
-            CLIENT_KEY, CLIENT_CHANGE_CIPHER_SPEC, CLIENT_FINISHED,
-            SERVER_CHANGE_CIPHER_SPEC, SERVER_FINISHED,
+            SERVER_HELLO,
+            // SERVER_CERT, SERVER_HELLO_DONE,
+            // CLIENT_KEY, CLIENT_CHANGE_CIPHER_SPEC, CLIENT_FINISHED,
+            // SERVER_CHANGE_CIPHER_SPEC, SERVER_FINISHED,
             APPLICATION_DATA
     },
 
@@ -145,21 +190,27 @@ static message_type_t handshakes[128][16] = {
 
     [NEGOTIATED | FULL_HANDSHAKE | PERFECT_FORWARD_SECRECY ] = {
             CLIENT_HELLO,
-            SERVER_HELLO, SERVER_CERT, SERVER_KEY, SERVER_HELLO_DONE,
-            CLIENT_KEY, CLIENT_CHANGE_CIPHER_SPEC, CLIENT_FINISHED,
-            SERVER_CHANGE_CIPHER_SPEC, SERVER_FINISHED,
+            SERVER_HELLO,
+            SERVER_EE,
+            // SERVER_CERT, SERVER_KEY, SERVER_HELLO_DONE,
+            // CLIENT_KEY, CLIENT_CHANGE_CIPHER_SPEC, CLIENT_FINISHED,
+            // SERVER_CHANGE_CIPHER_SPEC, SERVER_FINISHED,
             APPLICATION_DATA
     },
 
     [NEGOTIATED | FULL_HANDSHAKE | PERFECT_FORWARD_SECRECY | WITH_SESSION_TICKET ] = {
             CLIENT_HELLO,
-            SERVER_HELLO, SERVER_CERT, SERVER_KEY, SERVER_HELLO_DONE,
-            CLIENT_KEY, CLIENT_CHANGE_CIPHER_SPEC, CLIENT_FINISHED,
-            SERVER_NEW_SESSION_TICKET, SERVER_CHANGE_CIPHER_SPEC, SERVER_FINISHED,
+            SERVER_HELLO,
+            SERVER_EE,
+            // ----
+
+            // SERVER_CERT, SERVER_KEY, SERVER_HELLO_DONE,
+            // CLIENT_KEY, CLIENT_CHANGE_CIPHER_SPEC, CLIENT_FINISHED,
+            // SERVER_NEW_SESSION_TICKET, SERVER_CHANGE_CIPHER_SPEC, SERVER_FINISHED,
             APPLICATION_DATA
     },
 
-    [NEGOTIATED | FULL_HANDSHAKE | OCSP_STATUS ] ={
+    [NEGOTIATED | FULL_HANDSHAKE | OCSP_STATUS ] = {
             CLIENT_HELLO,
             SERVER_HELLO, SERVER_CERT, SERVER_CERT_STATUS, SERVER_HELLO_DONE,
             CLIENT_KEY, CLIENT_CHANGE_CIPHER_SPEC, CLIENT_FINISHED,
@@ -348,6 +399,10 @@ message_type_t s2n_conn_get_current_message_type(struct s2n_connection *conn)
 
 static int s2n_advance_message(struct s2n_connection *conn)
 {
+    printf("Advancing....\n");
+    printf("s2n_advance_message: %s\n", s2n_connection_get_last_message_name(conn));
+    printf("s2n_connection_get_handshake_type_name: %s\n", s2n_connection_get_handshake_type_name(conn));
+
     char this = 'S';
     if (conn->mode == S2N_CLIENT) {
         this = 'C';
@@ -355,6 +410,9 @@ static int s2n_advance_message(struct s2n_connection *conn)
 
     /* Actually advance the message number */
     conn->handshake.message_number++;
+
+    printf("s2n_advance_message: %s\n", s2n_connection_get_last_message_name(conn));
+
 
     /* Set TCP_QUICKACK to avoid artificial dealy during the handshake */
     GUARD(s2n_socket_quickack(conn));
@@ -515,6 +573,7 @@ const char *s2n_connection_get_handshake_type_name(struct s2n_connection *conn)
 
 static int s2n_conn_update_handshake_hashes(struct s2n_connection *conn, struct s2n_blob *data)
 {
+    printf("[handshake] _update_handshake_hashes\n");
     if (s2n_handshake_is_hash_required(&conn->handshake, S2N_HASH_MD5)) {
         /* The handshake MD5 hash state will fail the s2n_hash_is_available() check
          * since MD5 is not permitted in FIPS mode. This check will not be used as
@@ -546,16 +605,70 @@ static int s2n_conn_update_handshake_hashes(struct s2n_connection *conn, struct 
     }
 
     if (s2n_handshake_is_hash_required(&conn->handshake, S2N_HASH_SHA256)) {
+        printf("[handshake] computing SHA256...\n");
         GUARD(s2n_hash_update(&conn->handshake.sha256, data->data, data->size));
     }
 
     if (s2n_handshake_is_hash_required(&conn->handshake, S2N_HASH_SHA384)) {
+        printf("[handshake] computing SHA384...\n");
         GUARD(s2n_hash_update(&conn->handshake.sha384, data->data, data->size));
+
+
+        if (ACTIVE_MESSAGE( (conn) ) == CLIENT_HELLO) {
+            printf("[handshake] * Client Helloed\n");
+        }
+
+        if (ACTIVE_MESSAGE( (conn) ) == SERVER_HELLO) {
+            printf("[handshake] * Server Helloed\n");
+
+            struct s2n_blob client_shared_secret = { 0 };
+            
+            conn->secure.server_ecc_params.negotiated_curve = conn->secure.client_ecc_params[0].negotiated_curve;
+
+            GUARD(s2n_ecc_compute_shared_secret_from_params(
+                &conn->secure.client_ecc_params[0],
+                &conn->secure.server_ecc_params,
+                &client_shared_secret));
+
+            printf("[handshake] === Computed shared secret ===\n");
+            print_hex(client_shared_secret.data, client_shared_secret.size);
+
+            // ---------- set up -------------
+            struct s2n_tls13_keys secrets = {0};
+            
+            s2n_tls13_keys_init(&secrets, 
+                // conn->secure.cipher_suite->tls12_prf_alg
+                S2N_HMAC_SHA384
+            );
+
+            s2n_tls13_derive_early_secrets(&secrets);
+            
+            s2n_stack_blob(client_hs_secret, secrets.size, SHA384_DIGEST_LENGTH);
+            s2n_stack_blob(server_hs_secret, secrets.size, SHA384_DIGEST_LENGTH);
+
+            
+            s2n_tls13_derive_handshake_secrets(&secrets, &client_shared_secret, &conn->handshake.sha384,
+                &client_hs_secret, &server_hs_secret);
+
+            printf("%s", KYEL);
+            
+            printf("\n");
+            printf("[handshake] === client_handshake_traffic_secret ===\n");
+            print_hex(client_hs_secret.data, client_hs_secret.size);
+
+            printf("\n");
+            printf("[handshake] === client_handshake_traffic_secret ===\n");
+            print_hex(server_hs_secret.data, server_hs_secret.size);
+            printf("\n");
+            printf("%s", KNRM);
+        }
     }
 
     if (s2n_handshake_is_hash_required(&conn->handshake, S2N_HASH_SHA512)) {
         GUARD(s2n_hash_update(&conn->handshake.sha512, data->data, data->size));
     }
+
+    printf("[handshake] Handshake updated\n");
 
     return 0;
 }
@@ -567,6 +680,7 @@ static int s2n_conn_update_handshake_hashes(struct s2n_connection *conn, struct 
  */
 static int handshake_write_io(struct s2n_connection *conn)
 {
+    printf("%% handshake_write_io\n");
     uint8_t record_type = ACTIVE_STATE(conn).record_type;
     s2n_blocked_status blocked = S2N_NOT_BLOCKED;
 
@@ -597,14 +711,21 @@ static int handshake_write_io(struct s2n_connection *conn)
         /* Make the actual record */
         GUARD(s2n_record_write(conn, record_type, &out));
 
+        printf("Moo read %s\n", s2n_connection_get_last_message_name(conn));
+
         /* MD5 and SHA sum the handshake data too */
         if (record_type == TLS_HANDSHAKE) {
+            printf("Done 0\n");
             GUARD(s2n_conn_update_handshake_hashes(conn, &out));
         }
 
+        printf("Flushing..\n");
         /* Actually send the record. We could block here. Assume the caller will call flush before coming back. */
         GUARD(s2n_flush(conn, &blocked));
+        printf("Flushed..\n");
     }
+
+    printf("Done 1\n");
 
     /* We're done sending the last record, reset everything */
     GUARD(s2n_stuffer_wipe(&conn->out));
@@ -716,6 +837,7 @@ static int s2n_handshake_handle_sslv2(struct s2n_connection *conn)
  */
 static int handshake_read_io(struct s2n_connection *conn)
 {
+    printf("[handshake] handshake_read_io()\n");
     uint8_t record_type;
     int isSSLv2;
 
@@ -758,6 +880,8 @@ static int handshake_read_io(struct s2n_connection *conn)
         conn->in_status = ENCRYPTED;
         return 0;
     }
+    /////////
+    
 
     /* Record is a handshake message */
     while (s2n_stuffer_data_available(&conn->in)) {
@@ -803,6 +927,7 @@ static int handshake_read_io(struct s2n_connection *conn)
 
         /* Don't update handshake hashes until after the handler has executed since some handlers need to read the
          * hash values before they are updated. */
+        printf("[state machine]  last message %s\n", s2n_connection_get_last_message_name(conn));
         GUARD(s2n_handshake_conn_update_hashes(conn));
 
         GUARD(s2n_stuffer_wipe(&conn->handshake.io));
@@ -831,8 +956,10 @@ int s2n_negotiate(struct s2n_connection *conn, s2n_blocked_status * blocked)
     if (conn->mode == S2N_CLIENT) {
         this = 'C';
     }
+    
 
     while (ACTIVE_STATE(conn).writer != 'B') {
+        printf("[state machine] State: %s\n", s2n_connection_get_last_message_name(conn));
         /* Flush any pending I/O or alert messages */
         GUARD(s2n_flush(conn, blocked));
 

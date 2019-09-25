@@ -1065,6 +1065,7 @@ static int s2n_set_cipher_and_cert_as_server(struct s2n_connection *conn, uint8_
             }
 
             conn->secure.cipher_suite = match;
+            printf("Cipher suite: %s\n", match->name);
             return 0;
         }
     }
