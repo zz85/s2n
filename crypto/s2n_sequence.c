@@ -38,3 +38,12 @@ int s2n_increment_sequence_number(struct s2n_blob *sequence_number)
 
     return 0;
 }
+
+int s2n_reset_sequence_number(struct s2n_blob *sequence_number)
+{
+    for (int i = sequence_number->size - 1; i >= 0; i--) {
+        sequence_number->data[i] = 0;
+    }
+
+    return 0;
+}
