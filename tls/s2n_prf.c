@@ -526,6 +526,7 @@ int s2n_prf_server_finished(struct s2n_connection *conn)
 
     server_finished.data = conn->handshake.server_finished;
     server_finished.size = S2N_TLS_FINISHED_LEN;
+    
     label.data = server_finished_label;
     label.size = sizeof(server_finished_label) - 1;
 

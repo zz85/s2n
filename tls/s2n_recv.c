@@ -47,6 +47,7 @@ int s2n_read_full_record(struct s2n_connection *conn, uint8_t * record_type, int
     if (conn->in_status == PLAINTEXT) {
         /* Only application data packets count as plaintext */
         *record_type = TLS_APPLICATION_DATA;
+        PRINT0("s2n_read_full_record() PLAINTEXT\n");
         return 0;
     }
 
@@ -90,6 +91,9 @@ int s2n_read_full_record(struct s2n_connection *conn, uint8_t * record_type, int
         }
     }
 
+    PRINT0("Header In Blob\n");
+    print_hex_blob(conn->header_in.blob);
+
     /* Read enough to have the whole record */
     while (s2n_stuffer_data_available(&conn->in) < fragment_length) {
         int remaining = fragment_length - s2n_stuffer_data_available(&conn->in);
@@ -112,6 +116,9 @@ int s2n_read_full_record(struct s2n_connection *conn, uint8_t * record_type, int
         conn->wire_bytes_in += r;
     }
 
+    PRINT0("Conn in\n");
+    debug_stuffer(&conn->in);
+
     if (*isSSLv2) {
         return 0;
     }
@@ -122,6 +129,14 @@ int s2n_read_full_record(struct s2n_connection *conn, uint8_t * record_type, int
 
         return -1;
     }
+
+    PRINT0("s2n_record_parsed() \n");
+    debug_stuffer(&conn->in);
+    for (int i = 0; i < 14; i++) {
+        printf("%02x ", conn->in.blob.data[i]);
+    }
+    printf(" <--- \n");
+
 
     return 0;
 }

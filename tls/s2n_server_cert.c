@@ -57,10 +57,14 @@ int s2n_server_cert_recv(struct s2n_connection *conn)
     if (conn->actual_protocol_version == S2N_TLS13) {
         uint8_t certificate_request_context;
         GUARD(s2n_stuffer_read_uint8(&conn->handshake.io, &certificate_request_context));
+        return 0;
     }
 
     uint32_t size_of_all_certificates;
+    DEBUG_STUFFER(&conn->handshake.io);
     GUARD(s2n_stuffer_read_uint24(&conn->handshake.io, &size_of_all_certificates));
+    printf("size_of_all_certificates: %d\n", size_of_all_certificates);
+    conn->x509_validator.skip_cert_validation = 1;
 
     S2N_ERROR_IF(size_of_all_certificates > s2n_stuffer_data_available(&conn->handshake.io) || size_of_all_certificates < 3, S2N_ERR_BAD_MESSAGE);
 
@@ -72,11 +76,12 @@ int s2n_server_cert_recv(struct s2n_connection *conn)
     cert_chain.data = s2n_stuffer_raw_read(&conn->handshake.io, size_of_all_certificates);
     cert_chain.size = size_of_all_certificates;
 
-    S2N_ERROR_IF(s2n_x509_validator_validate_cert_chain(&conn->x509_validator, conn, cert_chain.data,
-                         cert_chain.size, &actual_cert_type, &public_key) != S2N_CERT_OK, S2N_ERR_CERT_UNTRUSTED);
+    S2N_ERROR_IF(
+        s2n_x509_validator_validate_cert_chain(&conn->x509_validator, conn, cert_chain.data,
+                         cert_chain.size, &actual_cert_type, &public_key)
+                          != S2N_CERT_OK, S2N_ERR_CERT_UNTRUSTED);    
 
     GUARD(is_cert_supported(conn, actual_cert_type));
-
     conn->secure.client_cert_type = actual_cert_type;
     s2n_pkey_setup_for_type(&public_key, actual_cert_type);
     conn->secure.server_public_key = public_key;

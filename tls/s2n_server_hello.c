@@ -73,7 +73,9 @@ int s2n_server_hello_recv(struct s2n_connection *conn)
 
     if (conn->server_protocol_version >= S2N_TLS13) {
         /* Check echoed session ID matches */
-        S2N_ERROR_IF(session_id_len != conn->session_id_len || !memcmp(session_id, conn->session_id, session_id_len), S2N_ERR_BAD_MESSAGE);
+        // S2N_ERROR_IF(session_id_len != conn->session_id_len || !memcmp(session_id, conn->session_id, session_id_len), S2N_ERR_BAD_MESSAGE);
+        PRINT0("TODO match server protocol");
+
         conn->actual_protocol_version = conn->server_protocol_version;
         GUARD(s2n_set_cipher_as_client(conn, cipher_suite_wire));
     } else {
@@ -131,6 +133,23 @@ int s2n_server_hello_recv(struct s2n_connection *conn)
         /* TLS prior to 1.2 defaults to MD5 SHA1 hash if authentication is RSA */
         conn->secure.conn_hash_alg = S2N_HASH_MD5_SHA1;
     }
+
+    PRINT0("TLS 1.3 ServerHello Done\n");
+    
+    /* Zero the sequence number */
+    struct s2n_blob seq = {.data = conn->secure.server_sequence_number,.size = sizeof(conn->secure.server_sequence_number) };
+    GUARD(s2n_blob_zero(&seq));
+
+    /* Compute the finished message */
+    // GUARD(s2n_prf_server_finished(conn));
+
+    /* Update the secure state to active, and point the client at the active state */
+    conn->server = &conn->secure;
+
+    /* Flush any partial alert messages that were pending.
+     * If we don't do this, an attacker can inject a 1-byte alert message into the handshake
+     * and cause later, valid alerts to be processed incorrectly. */
+    GUARD(s2n_stuffer_wipe(&conn->alert_in));
 
     return 0;
 }

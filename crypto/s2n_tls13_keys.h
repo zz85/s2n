@@ -60,6 +60,8 @@ extern const struct s2n_blob s2n_tls13_label_resumption_master_secret;
 extern const struct s2n_blob s2n_tls13_label_traffic_secret_key;
 extern const struct s2n_blob s2n_tls13_label_traffic_secret_iv;
 
+extern const struct s2n_blob s2n_tls13_label_finished;
+
 #define s2n_tls13_key_blob(name, bytes) \
     s2n_stack_blob(name, bytes, S2N_TLS13_SECRET_MAX_LEN)
 
@@ -75,3 +77,4 @@ int s2n_tls13_derive_application_secrets(struct s2n_tls13_keys *handshake, struc
 int s2n_tls13_derive_traffic_keys(struct s2n_tls13_keys *handshake, struct s2n_blob *secret, struct s2n_blob *key, struct s2n_blob *iv);
 extern int s2n_handle_tls13_secrets_update(struct s2n_connection *conn);
 
+int server_finish_verify(struct s2n_connection *conn, struct s2n_tls13_keys *keys);

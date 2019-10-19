@@ -36,7 +36,7 @@ LIBS += -lm -ltests2n -ls2n -ldl
 
 # Suppress the unreachable code warning, because tests involve what should be
 # unreachable code
-CFLAGS += -Wno-unreachable-code -I../
+CFLAGS += -g -Wno-unreachable-code -I../
 LDFLAGS += -L../../lib/ ${CRYPTO_LDFLAGS} -L../testlib/ ${LIBS} ${CRYPTO_LIBS}
 
 ifdef S2N_ADDRESS_SANITIZER

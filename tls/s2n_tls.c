@@ -71,3 +71,12 @@ void print_hex2(uint8_t *s, size_t len) {
 void print_hex_blob(struct s2n_blob blob) {
     print_hex(blob.data, blob.size);
 }
+
+void debug_stuffer(struct s2n_stuffer *stuffer) {
+    printf("Stuffer R: %d, W: %d, Size: %d\n", stuffer->read_cursor, stuffer->write_cursor, s2n_stuffer_data_available(stuffer));
+    for (int i = stuffer->read_cursor; i < stuffer->read_cursor + 5; i++) {
+        printf("%02x ", stuffer->blob.data[i]);
+    }
+    printf("\n");
+}
+
