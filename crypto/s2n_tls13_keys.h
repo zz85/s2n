@@ -73,3 +73,5 @@ int s2n_tls13_derive_handshake_secrets(struct s2n_tls13_keys *handshake,
 int s2n_tls13_derive_application_secrets(struct s2n_tls13_keys *handshake, struct s2n_hash_state *hashes, struct s2n_blob *client_secret, struct s2n_blob *server_secret);
 
 int s2n_tls13_derive_traffic_keys(struct s2n_tls13_keys *handshake, struct s2n_blob *secret, struct s2n_blob *key, struct s2n_blob *iv);
+extern int s2n_handle_tls13_secrets_update(struct s2n_connection *conn);
+
