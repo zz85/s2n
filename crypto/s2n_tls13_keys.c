@@ -104,11 +104,15 @@ int s2n_handle_tls13_secrets_update(struct s2n_connection *conn) {
     // ---------- set up -------------
     struct s2n_tls13_keys secrets = {0};
 
+    printf("HMAC algo %d\n", conn->secure.cipher_suite->tls12_prf_alg);
+
     s2n_tls13_keys_init(&secrets, 
-        // conn->secure.cipher_suite->tls12_prf_alg
+        conn->secure.cipher_suite->tls12_prf_alg
         // S2N_HMAC_SHA384
-        S2N_HMAC_SHA256
+        // S2N_HMAC_SHA256
     );
+
+    printf("Secrets size %d\n", secrets.size);
 
     s2n_tls13_derive_early_secrets(&secrets);
 
@@ -118,8 +122,16 @@ int s2n_handle_tls13_secrets_update(struct s2n_connection *conn) {
     // conn->server->server_implicit_iv
     // conn->server->server_key
 
+    struct s2n_hash_state hash_state = {0};
+    GUARD(s2n_handshake_get_hash_state(conn,
+        // chosen_hash_alg,
+        secrets.hash_algorithm,
+        &hash_state));
 
-    s2n_tls13_derive_handshake_secrets(&secrets, &client_shared_secret, &conn->handshake.sha256, // FIXME stub this!
+
+    s2n_tls13_derive_handshake_secrets(&secrets, &client_shared_secret,
+        // &conn->handshake.sha256, // FIXME stub this!
+        &hash_state,
         &client_hs_secret, &server_hs_secret);
 
     printf("%s", KYEL);
@@ -134,7 +146,15 @@ int s2n_handle_tls13_secrets_update(struct s2n_connection *conn) {
     printf("\n");
     printf("%s", KNRM);
 
-    s2n_tls13_key_blob(s_hs_key, 16);
+    // conn->secure.cipher_suite->record_alg->cipher->key_material_size
+
+    printf("Key Material size: %d\n", conn->secure.cipher_suite->record_alg->cipher->key_material_size);
+
+
+    s2n_tls13_key_blob(s_hs_key,
+        conn->secure.cipher_suite->record_alg->cipher->key_material_size
+        // 16
+        );
 
     struct s2n_blob s_hs_iv = {
         .data = conn->server->server_implicit_iv,
@@ -155,8 +175,15 @@ int s2n_handle_tls13_secrets_update(struct s2n_connection *conn) {
     // conn->server->server_implicit_iv[10] = 99;
     // conn->server->server_implicit_iv[11] = 99;
 
+    // struct s2n_session_key session_key = { 0 };
+    // EXPECT_SUCCESS(s2n_session_key_alloc(&session_key));
+
+
     // GUARD(s2n_session_key_alloc(&conn->server->server_key));
     // GUARD(s2n_aead_cipher_aes128_gcm_set_decryption_key(&conn->server->server_key, &s_hs_key));
+    PRINT0("Cipher Init\n");
+    printf("%d\n", conn->secure.cipher_suite->record_alg->cipher->type);
+    GUARD(conn->secure.cipher_suite->record_alg->cipher->init(&conn->server->server_key));
     GUARD(conn->secure.cipher_suite->record_alg->cipher->set_decryption_key(&conn->server->server_key, &s_hs_key));
 
     return 0;

@@ -442,6 +442,11 @@ message_type_t s2n_conn_get_current_message_type(struct s2n_connection *conn)
 
 static int s2n_advance_message(struct s2n_connection *conn)
 {
+    printf("Advancing.... TLS 13? %d\n", IS_TLS13_HANDSHAKE(conn));
+    STACKTRACE;
+
+    printf("s2n_advance_message: current: %s -> ", s2n_connection_get_last_message_name(conn));
+
     char this = 'S';
     if (conn->mode == S2N_CLIENT) {
         this = 'C';
@@ -450,6 +455,8 @@ static int s2n_advance_message(struct s2n_connection *conn)
     /* Actually advance the message number */
     conn->handshake.message_number++;
 
+    printf(" %s\n", s2n_connection_get_last_message_name(conn));
+
     /* Set TCP_QUICKACK to avoid artificial delay during the handshake */
     GUARD(s2n_socket_quickack(conn));
 
@@ -457,6 +464,7 @@ static int s2n_advance_message(struct s2n_connection *conn)
     if (ACTIVE_STATE(conn).writer != this &&
             ACTIVE_STATE(conn).record_type == TLS_CHANGE_CIPHER_SPEC &&
             IS_TLS13_HANDSHAKE(conn)) {
+                PRINT0("Skip CCS\n");
         return s2n_advance_message(conn);
     }
 
@@ -820,6 +828,7 @@ static int s2n_handshake_handle_sslv2(struct s2n_connection *conn)
     conn->in_status = ENCRYPTED;
 
     /* Advance the state machine */
+    PRINT0("sslv2 advance\n");
     GUARD(s2n_advance_message(conn));
 
     return 0;
@@ -872,6 +881,7 @@ static int handshake_read_io(struct s2n_connection *conn)
     int isSSLv2;
 
     GUARD(s2n_read_full_record(conn, &record_type, &isSSLv2));
+    printf("[handshake] handshake_read_io(). Record type: %d\n", record_type);
 
     if (isSSLv2) {
         GUARD(s2n_handshake_handle_sslv2(conn));
@@ -880,11 +890,55 @@ static int handshake_read_io(struct s2n_connection *conn)
     /* Now we have a record, but it could be a partial fragment of a message, or it might
      * contain several messages.
      */
-    S2N_ERROR_IF(record_type == TLS_APPLICATION_DATA, S2N_ERR_BAD_MESSAGE);
+    // S2N_ERROR_IF(record_type == TLS_APPLICATION_DATA, S2N_ERR_BAD_MESSAGE);
+
+    if (record_type == TLS_APPLICATION_DATA) {
+        PRINT0("[handshake] APP MODE! Probably TLS 1.3 encrypted payload.. reading record again!\n");
+
+        uint8_t handshake_type; // content_type
+        uint32_t length;
+
+        GUARD(s2n_stuffer_read_uint8(&conn->in, &handshake_type));
+        GUARD(s2n_stuffer_read_uint24(&conn->in, &length));
+
+        printf("handshake_type: %d\n", handshake_type);
+        printf("length: %d\n", length);
+
+        if (handshake_type == 11) {
+            // certificate
+            uint8_t certificate_request_context;
+            GUARD(s2n_stuffer_read_uint8(&conn->in, &certificate_request_context));
+            printf("certificate_request_context: %d\n", certificate_request_context);
+        }
+        // 7
+        printf("available: %d\n", s2n_stuffer_data_available(&conn->in));
+        debug_stuffer(&conn->handshake.io);
+        GUARD(s2n_stuffer_copy(&conn->in, &conn->handshake.io, s2n_stuffer_data_available(&conn->in)));
+        PRINT0("After\n");
+        debug_stuffer(&conn->handshake.io);
+
+        PRINT0("Execute HS App handler\n");
+        printf("??? current: %s! \n", s2n_connection_get_last_message_name(conn));
+        GUARD(ACTIVE_STATE(conn).handler[conn->mode] (conn));
+
+        GUARD(s2n_stuffer_wipe(&conn->handshake.io));
+        /* We're done with the record, wipe it */
+        GUARD(s2n_stuffer_wipe(&conn->header_in));
+        GUARD(s2n_stuffer_wipe(&conn->in));
+        conn->in_status = ENCRYPTED;
+
+        GUARD(s2n_advance_message(conn));
+
+        return 0;
+    } 
+    else
     if (record_type == TLS_CHANGE_CIPHER_SPEC) {
         S2N_ERROR_IF(s2n_stuffer_data_available(&conn->in) != 1, S2N_ERR_BAD_MESSAGE);
 
         GUARD(s2n_stuffer_copy(&conn->in, &conn->handshake.io, s2n_stuffer_data_available(&conn->in)));
+        
+        printf("??? current: %s! \n", s2n_connection_get_last_message_name(conn));
+
         GUARD(ACTIVE_STATE(conn).handler[conn->mode] (conn));
         GUARD(s2n_stuffer_wipe(&conn->handshake.io));
 
@@ -895,9 +949,10 @@ static int handshake_read_io(struct s2n_connection *conn)
 
         /* Advance the state machine */
         if (ACTIVE_STATE(conn).record_type == TLS_CHANGE_CIPHER_SPEC) {
+            PRINT0("TLS_CHANGE_CIPHER_SPEC advanced\n");
             GUARD(s2n_advance_message(conn));
         }
-
+    
         return 0;
     } else if (record_type != TLS_HANDSHAKE) {
         if (record_type == TLS_ALERT) {
@@ -952,6 +1007,7 @@ static int handshake_read_io(struct s2n_connection *conn)
         S2N_ERROR_IF(actual_handshake_message_type != EXPECTED_MESSAGE_TYPE(conn), S2N_ERR_BAD_MESSAGE);
 
         /* Call the relevant handler */
+        PRINT0("Call relevant handler\n");
         r = ACTIVE_STATE(conn).handler[conn->mode] (conn);
 
         /* Don't update handshake hashes until after the handler has executed since some handlers need to read the
@@ -967,6 +1023,7 @@ static int handshake_read_io(struct s2n_connection *conn)
         }
 
         /* Advance the state machine */
+        PRINT0("normal advanced\n");
         GUARD(s2n_advance_message(conn));
     }
 

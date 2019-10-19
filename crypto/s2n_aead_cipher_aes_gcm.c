@@ -64,6 +64,7 @@ static int s2n_aead_cipher_aes_gcm_encrypt(struct s2n_session_key *key, struct s
 
 static int s2n_aead_cipher_aes_gcm_decrypt(struct s2n_session_key *key, struct s2n_blob *iv, struct s2n_blob *aad, struct s2n_blob *in, struct s2n_blob *out)
 {
+    PRINT0("s2n_aead_cipher_aes_gcm_decrypt\n");
     gte_check(in->size, S2N_TLS_GCM_TAG_LEN);
     gte_check(out->size, in->size);
     eq_check(iv->size, S2N_TLS_GCM_IV_LEN);
@@ -122,6 +123,7 @@ static int s2n_aead_cipher_aes256_gcm_set_encryption_key(struct s2n_session_key 
 
 static int s2n_aead_cipher_aes128_gcm_set_decryption_key(struct s2n_session_key *key, struct s2n_blob *in)
 {
+    PRINT0("s2n_aead_cipher_aes128_gcm_set_decryption_key\n");
     eq_check(in->size, 16);
 
     GUARD_OSSL(EVP_DecryptInit_ex(key->evp_cipher_ctx, EVP_aes_128_gcm(), NULL, NULL, NULL), S2N_ERR_KEY_INIT);
@@ -135,6 +137,7 @@ static int s2n_aead_cipher_aes128_gcm_set_decryption_key(struct s2n_session_key 
 
 static int s2n_aead_cipher_aes256_gcm_set_decryption_key(struct s2n_session_key *key, struct s2n_blob *in)
 {
+    PRINT0("s2n_aead_cipher_aes256_gcm_set_decryption_key\n");
     eq_check(in->size, 32);
 
     GUARD_OSSL(EVP_DecryptInit_ex(key->evp_cipher_ctx, EVP_aes_256_gcm(), NULL, NULL, NULL), S2N_ERR_KEY_INIT);
@@ -148,6 +151,7 @@ static int s2n_aead_cipher_aes256_gcm_set_decryption_key(struct s2n_session_key 
 
 static int s2n_aead_cipher_aes_gcm_init(struct s2n_session_key *key)
 {
+    PRINT0("s2n_aead_cipher_aes_gcm_init\n");
     s2n_evp_ctx_init(key->evp_cipher_ctx);
 
     return 0;

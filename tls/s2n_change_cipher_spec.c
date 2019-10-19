@@ -30,6 +30,7 @@
 
 int s2n_basic_ccs_recv(struct s2n_connection *conn)
 {
+    PRINT0("s2n_basic_ccs_recv\n");
     uint8_t type;
 
     GUARD(s2n_stuffer_read_uint8(&conn->handshake.io, &type));

@@ -973,8 +973,11 @@ struct s2n_cipher_suite *s2n_cipher_suite_from_wire(const uint8_t cipher_suite[S
 
 int s2n_set_cipher_as_client(struct s2n_connection *conn, uint8_t wire[S2N_TLS_CIPHER_SUITE_LEN])
 {
+    PRINT0("s2n_set_cipher_as_client\n");
+    printf("cipher wire %d %d \n", wire[0], wire[1]);
     /* See if the cipher is one we support */
     conn->secure.cipher_suite = s2n_cipher_suite_from_wire(wire);
+    printf("cipher wire found: %s \n", conn->secure.cipher_suite->name);
     S2N_ERROR_IF(conn->secure.cipher_suite == NULL, S2N_ERR_CIPHER_NOT_SUPPORTED);
 
     /* For SSLv3 use SSLv3-specific ciphers */
@@ -1019,6 +1022,7 @@ static struct s2n_cert_chain_and_key *s2n_conn_get_compatible_cert_chain_and_key
 
 static int s2n_set_cipher_and_cert_as_server(struct s2n_connection *conn, uint8_t * wire, uint32_t count, uint32_t cipher_suite_len)
 {
+    PRINT0("s2n_set_cipher_and_cert_as_server\n");
     uint8_t renegotiation_info_scsv[S2N_TLS_CIPHER_SUITE_LEN] = { TLS_EMPTY_RENEGOTIATION_INFO_SCSV };
     struct s2n_cipher_suite *higher_vers_match = NULL;
     struct s2n_cert_chain_and_key *higher_vers_cert = NULL;
