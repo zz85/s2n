@@ -38,6 +38,8 @@
 #include "utils/s2n_random.h"
 #include "utils/s2n_str.h"
 
+#include "crypto/s2n_tls13_keys.h"
+
 /* From RFC 8446: https://tools.ietf.org/html/rfc8446#appendix-B.3 */
 #define TLS_HELLO_REQUEST              0
 #define TLS_CLIENT_HELLO               1
@@ -662,6 +664,15 @@ static int s2n_conn_update_handshake_hashes(struct s2n_connection *conn, struct 
 
     if (s2n_handshake_is_hash_required(&conn->handshake, S2N_HASH_SHA512)) {
         GUARD(s2n_hash_update(&conn->handshake.sha512, data->data, data->size));
+    }
+
+    if (ACTIVE_MESSAGE( (conn) ) == CLIENT_HELLO) {
+        printf("[handshake] * Client Helloed\n");
+    }
+
+    if (ACTIVE_MESSAGE( (conn) ) == SERVER_HELLO) {
+        printf("[handshake] * Server Helloed\n");
+        s2n_handle_tls13_secrets_update(conn);
     }
 
     return 0;

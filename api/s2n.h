@@ -38,6 +38,16 @@ extern "C" {
 #define S2N_TLS13 34
 #define S2N_UNKNOWN_PROTOCOL_VERSION 0
 
+#define KNRM  "\x1B[0m"
+#define KRED  "\x1B[01;31m"
+#define KGRN  "\x1B[32m"
+#define KYEL  "\x1B[33m"
+#define KBLU  "\x1B[34m"
+#define KMAG  "\x1B[35m"
+#define KCYN  "\x1B[36m"
+#define KWHT  "\x1B[37m"
+
+
 extern __thread int s2n_errno;
 
 typedef enum {
@@ -271,6 +281,18 @@ extern const char *s2n_connection_get_kem_name(struct s2n_connection *conn);
 extern int s2n_connection_get_alert(struct s2n_connection *conn);
 extern const char *s2n_connection_get_handshake_type_name(struct s2n_connection *conn);
 extern const char *s2n_connection_get_last_message_name(struct s2n_connection *conn);
+
+#define PRINT(msg, ...) do { \
+    fprintf(STD_OUT, "[%s] : %d : "msg" \n", \
+            __FILE__, __LINE__, ##__VA_ARGS__); \
+} while (0)
+
+#define PRINT0(msg) do { \
+    printf("[%s] : %d : "msg" \n", \
+            __FILE__, __LINE__); \
+} while (0)
+
+
 
 #ifdef __cplusplus
 }
