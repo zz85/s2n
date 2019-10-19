@@ -47,6 +47,8 @@ extern "C" {
 #define KCYN  "\x1B[36m"
 #define KWHT  "\x1B[37m"
 
+#include <execinfo.h>
+#include <stdio.h>
 
 extern __thread int s2n_errno;
 
@@ -283,15 +285,22 @@ extern const char *s2n_connection_get_handshake_type_name(struct s2n_connection 
 extern const char *s2n_connection_get_last_message_name(struct s2n_connection *conn);
 
 #define PRINT(msg, ...) do { \
-    fprintf(STD_OUT, "[%s] : %d : "msg" \n", \
+    fprintf(STD_OUT, "[%s]: %d: "msg" \n", \
             __FILE__, __LINE__, ##__VA_ARGS__); \
 } while (0)
 
 #define PRINT0(msg) do { \
-    printf("[%s] : %d : "msg" \n", \
+    printf("[%s]: %d: "msg" \n", \
             __FILE__, __LINE__); \
 } while (0)
 
+#define STACKTRACE void* callstack[128];\
+     int i, frames = backtrace(callstack, 128);\
+     char** strs = backtrace_symbols(callstack, frames);\
+     for (i = 0; i < frames; ++i) {\
+         printf("%s\n", strs[i]);\
+     }\
+     free(strs);
 
 
 #ifdef __cplusplus

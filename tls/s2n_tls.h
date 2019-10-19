@@ -96,3 +96,4 @@ extern uint16_t mfl_code_to_length[5];
 void print_hex(uint8_t *s, size_t len);
 void print_hex2(uint8_t *s, size_t len);
 void print_hex_blob(struct s2n_blob blob);
+void debug_stuffer(struct s2n_stuffer *stuffer);
