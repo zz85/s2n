@@ -19,6 +19,7 @@
 #include "utils/s2n_safety.h"
 #include "utils/s2n_rfc5952.h"
 #include "tls/s2n_config.h"
+#include "tls/s2n_tls.h"
 #include "tls/s2n_connection.h"
 
 #include <arpa/inet.h>
@@ -287,6 +288,9 @@ s2n_cert_validation_code s2n_x509_validator_validate_cert_chain(struct s2n_x509_
                                                                 uint8_t *cert_chain_in, uint32_t cert_chain_len,
                                                                 s2n_cert_type *cert_type, struct s2n_pkey *public_key_out) {
 
+    printf("validator->skip_cert_validation %d\n", validator->skip_cert_validation);
+    printf("s2n_x509_trust_store_has_certs %d\n", s2n_x509_trust_store_has_certs(validator->trust_store));
+
     if (!validator->skip_cert_validation && !s2n_x509_trust_store_has_certs(validator->trust_store)) {
         return S2N_CERT_ERR_UNTRUSTED;
     }
@@ -311,12 +315,17 @@ s2n_cert_validation_code s2n_x509_validator_validate_cert_chain(struct s2n_x509_
 
     while (s2n_stuffer_data_available(&cert_chain_in_stuffer) && certificate_count < validator->max_chain_depth) {
         uint32_t certificate_size = 0;
+        DEBUG_STUFFER(&cert_chain_in_stuffer);
 
         if (s2n_stuffer_read_uint24(&cert_chain_in_stuffer, &certificate_size) < 0) {
+            STACKTRACE;
             return S2N_CERT_ERR_INVALID;
         }
 
+        printf("certificate_size: %d\n", certificate_size);
+
         if (certificate_size == 0 || certificate_size > s2n_stuffer_data_available(&cert_chain_in_stuffer)) {
+            STACKTRACE;
             return S2N_CERT_ERR_INVALID;
         }
 
@@ -324,6 +333,7 @@ s2n_cert_validation_code s2n_x509_validator_validate_cert_chain(struct s2n_x509_
         asn1cert.data = s2n_stuffer_raw_read(&cert_chain_in_stuffer, certificate_size);
         asn1cert.size = certificate_size;
         if (asn1cert.data == NULL) {
+            STACKTRACE;
             return S2N_CERT_ERR_INVALID;
         }
 
@@ -333,12 +343,14 @@ s2n_cert_validation_code s2n_x509_validator_validate_cert_chain(struct s2n_x509_
             /* the cert is der encoded, just convert it. */
             server_cert = d2i_X509(NULL, &data, asn1cert.size);
             if (!server_cert) {
+                STACKTRACE;
                 return S2N_CERT_ERR_INVALID;
             }
 
             /* add the cert to the chain. */
             if (!sk_X509_push(validator->cert_chain, server_cert)) {
                 X509_free(server_cert);
+                STACKTRACE;
                 return S2N_CERT_ERR_INVALID;
             }
          }
@@ -346,6 +358,7 @@ s2n_cert_validation_code s2n_x509_validator_validate_cert_chain(struct s2n_x509_
         /* Pull the public key from the first certificate */
         if (certificate_count == 0) {
             if (s2n_asn1der_to_public_key_and_type(&public_key, cert_type, &asn1cert) < 0) {
+                STACKTRACE;
                 return S2N_CERT_ERR_INVALID;
             }
         }
@@ -354,6 +367,7 @@ s2n_cert_validation_code s2n_x509_validator_validate_cert_chain(struct s2n_x509_
         if (conn->actual_protocol_version == S2N_TLS13) {
             uint16_t certificate_extensions_length = 0;
             s2n_stuffer_read_uint16(&cert_chain_in_stuffer, &certificate_extensions_length);
+            printf("Hola certificate extensions %d\n", certificate_extensions_length);
             /* we currently do not process certificate extensions, but we can skip pass it */
             s2n_stuffer_skip_read(&cert_chain_in_stuffer, certificate_extensions_length);
         }
@@ -361,12 +375,16 @@ s2n_cert_validation_code s2n_x509_validator_validate_cert_chain(struct s2n_x509_
         certificate_count++;
     }
 
+    printf("certificate_count: %d\n", certificate_count);
+
     /* if this occurred we exceeded validator->max_chain_depth */
     if (!validator->skip_cert_validation && s2n_stuffer_data_available(&cert_chain_in_stuffer)) {
+        STACKTRACE;
         return S2N_CERT_ERR_MAX_CHAIN_DEPTH_EXCEEDED;
     }
 
     if (certificate_count < 1) {
+        STACKTRACE;
         return S2N_CERT_ERR_INVALID;
     }
 
@@ -374,10 +392,12 @@ s2n_cert_validation_code s2n_x509_validator_validate_cert_chain(struct s2n_x509_
     if (!validator->skip_cert_validation) {
         X509 *leaf = sk_X509_value(validator->cert_chain, 0);
         if (!leaf) {
+            STACKTRACE;
             return S2N_CERT_ERR_INVALID;
         }
 
         if (conn->verify_host_fn && !s2n_verify_host_information(validator, conn, leaf)) {
+            STACKTRACE;
             return S2N_CERT_ERR_UNTRUSTED;
         }
 
@@ -388,6 +408,7 @@ s2n_cert_validation_code s2n_x509_validator_validate_cert_chain(struct s2n_x509_
                                           validator->cert_chain);
 
         if (op_code <= 0) {
+            STACKTRACE;
             return S2N_CERT_ERR_INVALID;
         }
 
@@ -405,6 +426,7 @@ s2n_cert_validation_code s2n_x509_validator_validate_cert_chain(struct s2n_x509_
         op_code = X509_verify_cert(ctx);
 
         if (op_code <= 0) {
+            STACKTRACE;
             return S2N_CERT_ERR_UNTRUSTED;
         }
     }

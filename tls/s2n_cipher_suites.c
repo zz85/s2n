@@ -715,9 +715,6 @@ struct s2n_cipher_suite s2n_tls13_chacha20_poly1305_sha256 = {
     .key_exchange_alg = NULL,
     .auth_method = S2N_AUTHENTICATION_METHOD_TLS13,
     .record_alg = NULL,
-    .all_record_algs = { &s2n_tls13_record_alg_chacha20_poly1305 },
-    .num_record_algs = 1,
-    .sslv3_record_alg = NULL,
     .tls12_prf_alg = S2N_HMAC_SHA256,
     .minimum_required_tls_version = S2N_TLS13,
 };

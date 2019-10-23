@@ -904,18 +904,11 @@ static int handshake_read_io(struct s2n_connection *conn)
         printf("handshake_type: %d\n", handshake_type);
         printf("length: %d\n", length);
 
-        if (handshake_type == 11) {
-            // certificate
-            uint8_t certificate_request_context;
-            GUARD(s2n_stuffer_read_uint8(&conn->in, &certificate_request_context));
-            printf("certificate_request_context: %d\n", certificate_request_context);
-        }
-        // 7
         printf("available: %d\n", s2n_stuffer_data_available(&conn->in));
-        debug_stuffer(&conn->handshake.io);
+        DEBUG_STUFFER(&conn->handshake.io);
         GUARD(s2n_stuffer_copy(&conn->in, &conn->handshake.io, s2n_stuffer_data_available(&conn->in)));
         PRINT0("After\n");
-        debug_stuffer(&conn->handshake.io);
+        DEBUG_STUFFER(&conn->handshake.io);
 
         PRINT0("Execute HS App handler\n");
         printf("??? current: %s! \n", s2n_connection_get_last_message_name(conn));
