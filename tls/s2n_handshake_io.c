@@ -906,7 +906,8 @@ static int handshake_read_io(struct s2n_connection *conn)
 
         printf("available: %d\n", s2n_stuffer_data_available(&conn->in));
         DEBUG_STUFFER(&conn->handshake.io);
-        GUARD(s2n_stuffer_copy(&conn->in, &conn->handshake.io, s2n_stuffer_data_available(&conn->in)));
+        GUARD(s2n_stuffer_copy(&conn->in, &conn->handshake.io, length));
+        // s2n_stuffer_data_available(&conn->in) is 1 more than length
         PRINT0("After\n");
         DEBUG_STUFFER(&conn->handshake.io);
 

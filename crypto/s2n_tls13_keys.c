@@ -115,8 +115,8 @@ int s2n_handle_tls13_secrets_update(struct s2n_connection *conn) {
 
     s2n_tls13_derive_early_secrets(&secrets);
 
-    s2n_stack_blob(client_hs_secret, secrets.size, SHA384_DIGEST_LENGTH);
-    s2n_stack_blob(server_hs_secret, secrets.size, SHA384_DIGEST_LENGTH);
+    s2n_stack_blob(client_hs_secret, secrets.size, S2N_TLS13_SECRET_MAX_LEN);
+    s2n_stack_blob(server_hs_secret, secrets.size, S2N_TLS13_SECRET_MAX_LEN);
 
     struct s2n_hash_state hash_state = {0};
     // chosen_hash_alg,
@@ -162,7 +162,7 @@ int s2n_handle_tls13_secrets_update(struct s2n_connection *conn) {
     GUARD(conn->secure.cipher_suite->record_alg->cipher->set_decryption_key(&conn->server->server_key, &s_hs_key));
 
     // finished_key = HKDF
-    s2n_stack_blob(finished_key, secrets.size, 384);
+    s2n_stack_blob(finished_key, secrets.size, S2N_TLS13_SECRET_MAX_LEN);
     s2n_hkdf_expand_label(&secrets.hmac, secrets.hmac_algorithm, &s_hs_key, &s2n_tls13_label_finished, &zero_length_blob, &finished_key);
 
     return 0;

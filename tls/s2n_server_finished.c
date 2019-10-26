@@ -26,11 +26,20 @@
 #include "utils/s2n_safety.h"
 
 int s2n_tls13_server_finished_recv(struct s2n_connection *conn) {
+    PRINT0("TLS 13 server finish\n");
+
+    // This is the server finish!
+    debug_stuffer(&conn->handshake.io);
+
     return 0;
 }
 
 int s2n_server_finished_recv(struct s2n_connection *conn)
 {
+    if (conn->actual_protocol_version == S2N_TLS13) {
+        return s2n_tls13_server_finished_recv(conn);
+    }
+
     uint8_t *our_version;
     int length = S2N_TLS_FINISHED_LEN;
     our_version = conn->handshake.server_finished;
