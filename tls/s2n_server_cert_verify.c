@@ -12,8 +12,10 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
-
 #include "error/s2n_errno.h"
+#include "stuffer/s2n_stuffer.h"
+#include "tls/s2n_connection.h"
+#include "tls/s2n_tls.h"
 
 int s2n_server_cert_verify_send(struct s2n_connection *conn)
 {
@@ -22,5 +24,7 @@ int s2n_server_cert_verify_send(struct s2n_connection *conn)
 
 int s2n_server_cert_verify_recv(struct s2n_connection *conn)
 {
-    S2N_ERROR(S2N_ERR_UNIMPLEMENTED);
+    PRINT0("CERT VERIFY\n");
+    // conn->handshake.io
+    return 0;
 }

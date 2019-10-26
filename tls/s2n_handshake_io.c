@@ -680,7 +680,7 @@ static int s2n_conn_update_handshake_hashes(struct s2n_connection *conn, struct 
 
     if (ACTIVE_MESSAGE( (conn) ) == SERVER_HELLO) {
         printf("[handshake] * Server Helloed\n");
-        s2n_handle_tls13_secrets_update(conn);
+        GUARD(s2n_handle_tls13_secrets_update(conn));
     }
 
     return 0;

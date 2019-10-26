@@ -25,6 +25,10 @@
 
 #include "utils/s2n_safety.h"
 
+int s2n_tls13_server_finished_recv(struct s2n_connection *conn) {
+    return 0;
+}
+
 int s2n_server_finished_recv(struct s2n_connection *conn)
 {
     uint8_t *our_version;

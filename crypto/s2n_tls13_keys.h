@@ -60,6 +60,8 @@ extern const struct s2n_blob s2n_tls13_label_resumption_master_secret;
 extern const struct s2n_blob s2n_tls13_label_traffic_secret_key;
 extern const struct s2n_blob s2n_tls13_label_traffic_secret_iv;
 
+extern const struct s2n_blob s2n_tls13_label_finished;
+
 #define s2n_tls13_key_blob(name, bytes) \
     s2n_stack_blob(name, bytes, S2N_TLS13_SECRET_MAX_LEN)
 

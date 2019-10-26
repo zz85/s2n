@@ -86,6 +86,8 @@ S2N_BLOB_LABEL(s2n_tls13_label_resumption_master_secret, "res master")
 S2N_BLOB_LABEL(s2n_tls13_label_traffic_secret_key, "key")
 S2N_BLOB_LABEL(s2n_tls13_label_traffic_secret_iv, "iv")
 
+S2N_BLOB_LABEL(s2n_tls13_label_finished, "finished")
+
 static const struct s2n_blob zero_length_blob = { .data = NULL, .size = 0 };
 
 int s2n_handle_tls13_secrets_update(struct s2n_connection *conn) {
@@ -106,11 +108,8 @@ int s2n_handle_tls13_secrets_update(struct s2n_connection *conn) {
 
     printf("HMAC algo %d\n", conn->secure.cipher_suite->tls12_prf_alg);
 
-    s2n_tls13_keys_init(&secrets, 
-        conn->secure.cipher_suite->tls12_prf_alg
-        // S2N_HMAC_SHA384
-        // S2N_HMAC_SHA256
-    );
+    // either S2N_HMAC_SHA384 or S2N_HMAC_SHA256
+    s2n_tls13_keys_init(&secrets, conn->secure.cipher_suite->tls12_prf_alg);
 
     printf("Secrets size %d\n", secrets.size);
 
@@ -119,20 +118,10 @@ int s2n_handle_tls13_secrets_update(struct s2n_connection *conn) {
     s2n_stack_blob(client_hs_secret, secrets.size, SHA384_DIGEST_LENGTH);
     s2n_stack_blob(server_hs_secret, secrets.size, SHA384_DIGEST_LENGTH);
 
-    // conn->server->server_implicit_iv
-    // conn->server->server_key
-
     struct s2n_hash_state hash_state = {0};
-    GUARD(s2n_handshake_get_hash_state(conn,
-        // chosen_hash_alg,
-        secrets.hash_algorithm,
-        &hash_state));
-
-
-    s2n_tls13_derive_handshake_secrets(&secrets, &client_shared_secret,
-        // &conn->handshake.sha256, // FIXME stub this!
-        &hash_state,
-        &client_hs_secret, &server_hs_secret);
+    // chosen_hash_alg,
+    GUARD(s2n_handshake_get_hash_state(conn, secrets.hash_algorithm, &hash_state));
+    GUARD(s2n_tls13_derive_handshake_secrets(&secrets, &client_shared_secret, &hash_state, &client_hs_secret, &server_hs_secret));
 
     printf("%s", KYEL);
 
@@ -151,16 +140,9 @@ int s2n_handle_tls13_secrets_update(struct s2n_connection *conn) {
     printf("Key Material size: %d\n", conn->secure.cipher_suite->record_alg->cipher->key_material_size);
 
 
-    s2n_tls13_key_blob(s_hs_key,
-        conn->secure.cipher_suite->record_alg->cipher->key_material_size
-        // 16
-        );
+   s2n_tls13_key_blob(s_hs_key, conn->secure.cipher_suite->record_alg->cipher->key_material_size);
 
-    struct s2n_blob s_hs_iv = {
-        .data = conn->server->server_implicit_iv,
-        .size = 12
-    };
-
+    struct s2n_blob s_hs_iv = { .data = conn->server->server_implicit_iv, .size = 12 };
     s2n_blob_init(&s_hs_iv, conn->server->server_implicit_iv, 12);
 
     GUARD(s2n_tls13_derive_traffic_keys(&secrets, &server_hs_secret, &s_hs_key, &s_hs_iv));
@@ -170,24 +152,23 @@ int s2n_handle_tls13_secrets_update(struct s2n_connection *conn) {
     printf("--- HS key --\n");
     print_hex(s_hs_key.data, s_hs_key.size);
 
-    // conn->server->server_implicit_iv[8] = 99;
-    // conn->server->server_implicit_iv[9] = 99;
-    // conn->server->server_implicit_iv[10] = 99;
-    // conn->server->server_implicit_iv[11] = 99;
-
     // struct s2n_session_key session_key = { 0 };
     // EXPECT_SUCCESS(s2n_session_key_alloc(&session_key));
 
 
-    // GUARD(s2n_session_key_alloc(&conn->server->server_key));
-    // GUARD(s2n_aead_cipher_aes128_gcm_set_decryption_key(&conn->server->server_key, &s_hs_key));
     PRINT0("Cipher Init\n");
     printf("%d\n", conn->secure.cipher_suite->record_alg->cipher->type);
     GUARD(conn->secure.cipher_suite->record_alg->cipher->init(&conn->server->server_key));
     GUARD(conn->secure.cipher_suite->record_alg->cipher->set_decryption_key(&conn->server->server_key, &s_hs_key));
 
+    // finished_key = HKDF
+    s2n_stack_blob(finished_key, secrets.size, 384);
+    s2n_hkdf_expand_label(&secrets.hmac, secrets.hmac_algorithm, &s_hs_key, &s2n_tls13_label_finished, &zero_length_blob, &finished_key);
+
     return 0;
 }
+
+
 
 /* Message transcript hash based on selected HMAC algorithm */
 static int s2n_tls13_transcript_message_hash(struct s2n_tls13_keys *keys, const struct s2n_blob *message, struct s2n_blob *message_digest)
