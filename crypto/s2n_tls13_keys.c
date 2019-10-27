@@ -167,9 +167,16 @@ int s2n_handle_tls13_secrets_update(struct s2n_connection *conn) {
         .data = conn->handshake.server_finished,
         .size = secrets.size
     };
+
+    
+    PRINT0("server_hs_secret");
+    print_hex_blob(server_hs_secret);
     
     // calculate finish key
-    s2n_hkdf_expand_label(&secrets.hmac, secrets.hmac_algorithm, &s_hs_key, &s2n_tls13_label_finished, &zero_length_blob, &finished_key);
+    s2n_hkdf_expand_label(&secrets.hmac, secrets.hmac_algorithm, &server_hs_secret, &s2n_tls13_label_finished, &zero_length_blob, &finished_key);
+
+    PRINT0("Finish Key 0");
+    print_hex_blob(finished_key);
 
     return 0;
 }
@@ -195,6 +202,9 @@ int server_finish_verify(struct s2n_connection *conn, struct s2n_tls13_keys *key
         .data = conn->handshake.server_finished,
         .size = keys->size
     };
+
+    PRINT0("Finish Key");
+    print_hex_blob(finished_key);
 
     /*
         verify_data =

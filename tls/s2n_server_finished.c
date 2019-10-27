@@ -47,8 +47,15 @@ int s2n_tls13_server_finished_recv(struct s2n_connection *conn) {
     server_finish_verify(conn, &keys);
 
     PRINT0("Wire Verify\n");
-    debug_stuffer(&conn->handshake.io);
-    
+    // debug_stuffer(&conn->handshake.io);
+
+    uint8_t length = s2n_stuffer_data_available(&conn->handshake.io);
+    struct s2n_blob wire_server_finished_verify = {
+        .data = s2n_stuffer_raw_read(&conn->handshake.io, length),
+        .size = length
+    };
+
+    print_hex_blob(wire_server_finished_verify);
 
     return 0;
 }

@@ -929,6 +929,8 @@ static int handshake_read_io(struct s2n_connection *conn)
         struct s2n_blob handshake_record = {0};
         handshake_record.data = &conn->in.blob.data[read_pointer];
         handshake_record.size = 4 + length;
+        PRINT0("RECORD");
+        print_hex_blob(handshake_record);
         notnull_check(handshake_record.data);
 
         /* MD5 and SHA sum the handshake data too */

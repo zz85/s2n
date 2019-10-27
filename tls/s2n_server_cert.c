@@ -57,6 +57,7 @@ int s2n_server_cert_recv(struct s2n_connection *conn)
     if (conn->actual_protocol_version == S2N_TLS13) {
         uint8_t certificate_request_context;
         GUARD(s2n_stuffer_read_uint8(&conn->handshake.io, &certificate_request_context));
+        return 0;
     }
 
     uint32_t size_of_all_certificates;
