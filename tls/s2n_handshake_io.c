@@ -788,6 +788,9 @@ static int read_full_handshake_message(struct s2n_connection *conn, uint8_t * me
 
 static int s2n_handshake_conn_update_hashes(struct s2n_connection *conn)
 {
+    STACKTRACE;
+    PRINT0("^^^^^^^^^^^^ HAND ^^^^");
+
     uint8_t message_type;
     uint32_t handshake_message_length;
 
@@ -898,6 +901,8 @@ static int handshake_read_io(struct s2n_connection *conn)
         uint8_t handshake_type; // content_type
         uint32_t length;
 
+        uint32_t read_pointer = conn->in.read_cursor;
+        printf("read_pointer %d\n", read_pointer);
         GUARD(s2n_stuffer_read_uint8(&conn->in, &handshake_type));
         GUARD(s2n_stuffer_read_uint24(&conn->in, &length));
 
@@ -914,6 +919,21 @@ static int handshake_read_io(struct s2n_connection *conn)
         PRINT0("Execute HS App handler\n");
         printf("??? current: %s! \n", s2n_connection_get_last_message_name(conn));
         GUARD(ACTIVE_STATE(conn).handler[conn->mode] (conn));
+        
+        // 
+        // GUARD(s2n_stuffer_reread(&conn->handshake.io));
+        // GUARD(s2n_handshake_conn_update_hashes(conn));
+
+        // DIY update connection hashes
+
+        struct s2n_blob handshake_record = {0};
+        handshake_record.data = &conn->in.blob.data[read_pointer];
+        handshake_record.size = 4 + length;
+        notnull_check(handshake_record.data);
+
+        /* MD5 and SHA sum the handshake data too */
+        GUARD(s2n_conn_update_handshake_hashes(conn, &handshake_record));
+        
 
         GUARD(s2n_stuffer_wipe(&conn->handshake.io));
         /* We're done with the record, wipe it */

@@ -17,6 +17,7 @@
 
 #include "error/s2n_errno.h"
 
+
 #include "tls/s2n_connection.h"
 #include "tls/s2n_resume.h"
 #include "tls/s2n_tls.h"
@@ -25,11 +26,29 @@
 
 #include "utils/s2n_safety.h"
 
+#include "crypto/s2n_tls13_keys.h"
+
 int s2n_tls13_server_finished_recv(struct s2n_connection *conn) {
     PRINT0("TLS 13 server finish\n");
 
+    /* conn->handshake.server_finished differs from the way we do it in tls 1.2 where
+    conn->handshake.server_finished keeps the finish key secret (not the expected value).
+
+    we then run HMAC with the server finish as a key with the transcribe hash, then verify 
+    the results */
+
+    // verify it is expected hash size!
     // This is the server finish!
+
+    struct s2n_tls13_keys keys = {0};
+
+    s2n_tls13_keys_init(&keys, conn->secure.cipher_suite->tls12_prf_alg);
+
+    server_finish_verify(conn, &keys);
+
+    PRINT0("Wire Verify\n");
     debug_stuffer(&conn->handshake.io);
+    
 
     return 0;
 }

@@ -118,8 +118,8 @@ int s2n_handle_tls13_secrets_update(struct s2n_connection *conn) {
     s2n_stack_blob(client_hs_secret, secrets.size, S2N_TLS13_SECRET_MAX_LEN);
     s2n_stack_blob(server_hs_secret, secrets.size, S2N_TLS13_SECRET_MAX_LEN);
 
-    struct s2n_hash_state hash_state = {0};
     // chosen_hash_alg,
+    struct s2n_hash_state hash_state = {0};
     GUARD(s2n_handshake_get_hash_state(conn, secrets.hash_algorithm, &hash_state));
     GUARD(s2n_tls13_derive_handshake_secrets(&secrets, &client_shared_secret, &hash_state, &client_hs_secret, &server_hs_secret));
 
@@ -162,12 +162,57 @@ int s2n_handle_tls13_secrets_update(struct s2n_connection *conn) {
     GUARD(conn->secure.cipher_suite->record_alg->cipher->set_decryption_key(&conn->server->server_key, &s_hs_key));
 
     // finished_key = HKDF
-    s2n_stack_blob(finished_key, secrets.size, S2N_TLS13_SECRET_MAX_LEN);
+
+    struct s2n_blob finished_key = {
+        .data = conn->handshake.server_finished,
+        .size = secrets.size
+    };
+    
+    // calculate finish key
     s2n_hkdf_expand_label(&secrets.hmac, secrets.hmac_algorithm, &s_hs_key, &s2n_tls13_label_finished, &zero_length_blob, &finished_key);
 
     return 0;
 }
 
+int server_finish_verify(struct s2n_connection *conn, struct s2n_tls13_keys *keys) {
+    struct s2n_hash_state hash_state = {0};
+    GUARD(s2n_handshake_get_hash_state(conn, keys->hash_algorithm, &hash_state));
+
+
+    struct s2n_hash_state hash_state_copy;
+    GUARD(s2n_hash_new(&hash_state_copy));
+    GUARD(s2n_hash_copy(&hash_state_copy, &hash_state)); // copy from bla into hash copy
+    s2n_tls13_key_blob(transcribe_hash, keys->size);
+    GUARD(s2n_hash_digest(&hash_state_copy, transcribe_hash.data, transcribe_hash.size));
+    GUARD(s2n_hash_free(&hash_state_copy));
+
+    PRINT0("Server Finish Ctx Hash\n");
+    print_hex_blob(transcribe_hash);
+
+    s2n_tls13_key_blob(server_finish_verify, keys->size);
+
+    struct s2n_blob finished_key = {
+        .data = conn->handshake.server_finished,
+        .size = keys->size
+    };
+
+    /*
+        verify_data =
+          HMAC(finished_key,
+               Transcript-Hash(Handshake Context,
+            Certificate*, CertificateVerify*))
+    */
+    GUARD(s2n_hkdf_extract(&keys->hmac, keys->hmac_algorithm, &finished_key, &transcribe_hash, &server_finish_verify));
+
+    PRINT0("Server Finish Verify\n");
+    print_hex_blob(server_finish_verify);
+
+    return 0;
+}
+
+
+// static calculate_finish_key() TODO
+// 
 
 
 /* Message transcript hash based on selected HMAC algorithm */
@@ -318,3 +363,6 @@ int s2n_tls13_derive_traffic_keys(struct s2n_tls13_keys *keys, struct s2n_blob *
         &s2n_tls13_label_traffic_secret_iv, &zero_length_blob, iv));
     return 0;
 }
+
+// calculate finish key
+// server finish verify data

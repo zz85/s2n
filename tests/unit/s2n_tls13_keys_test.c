@@ -182,7 +182,6 @@ int main(int argc, char **argv)
     PRINT0("Calc Finish Key\n");
     print_hex_blob(calc_finished_key);
 
-    // struct s2n_hash_state hash_state_copy;
     EXPECT_SUCCESS(s2n_hash_new(&hash_state_copy));
     EXPECT_SUCCESS(s2n_hash_copy(&hash_state_copy, &hash_state));
 
