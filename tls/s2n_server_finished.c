@@ -36,18 +36,8 @@ int s2n_tls13_server_finished_recv(struct s2n_connection *conn) {
 
     we then run HMAC with the server finish as a key with the transcribe hash, then verify 
     the results */
-
-    // verify it is expected hash size!
-    // This is the server finish!
-
     struct s2n_tls13_keys keys = {0};
-
     s2n_tls13_keys_init(&keys, conn->secure.cipher_suite->tls12_prf_alg);
-
-    server_finish_verify(conn, &keys);
-
-    PRINT0("Wire Verify\n");
-    // debug_stuffer(&conn->handshake.io);
 
     uint8_t length = s2n_stuffer_data_available(&conn->handshake.io);
     struct s2n_blob wire_server_finished_verify = {
@@ -55,7 +45,8 @@ int s2n_tls13_server_finished_recv(struct s2n_connection *conn) {
         .size = length
     };
 
-    print_hex_blob(wire_server_finished_verify);
+    GUARD(server_finish_verify(conn, &keys, &wire_server_finished_verify));
+    PRINT0("Verify Ok\n");
 
     return 0;
 }

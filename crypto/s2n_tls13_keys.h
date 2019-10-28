@@ -75,6 +75,13 @@ int s2n_tls13_derive_handshake_secrets(struct s2n_tls13_keys *handshake,
 int s2n_tls13_derive_application_secrets(struct s2n_tls13_keys *handshake, struct s2n_hash_state *hashes, struct s2n_blob *client_secret, struct s2n_blob *server_secret);
 
 int s2n_tls13_derive_traffic_keys(struct s2n_tls13_keys *handshake, struct s2n_blob *secret, struct s2n_blob *key, struct s2n_blob *iv);
+int s2n_tls13_derive_finish_key(struct s2n_tls13_keys *keys, struct s2n_blob *secret_key, struct s2n_blob *output_finish_key);
+
+int s2n_tls13_calculate_finish_verify(struct s2n_tls13_keys *keys, struct s2n_blob *finished_key, struct s2n_hash_state *hash_state, struct s2n_blob *finished_verify);
+
+
 extern int s2n_handle_tls13_secrets_update(struct s2n_connection *conn);
 
-int server_finish_verify(struct s2n_connection *conn, struct s2n_tls13_keys *keys);
+int server_finish_verify(struct s2n_connection *conn, struct s2n_tls13_keys *keys, struct s2n_blob *verify);
+int client_finish_verify(struct s2n_connection *conn, struct s2n_tls13_keys *keys, struct s2n_blob *verify);
+

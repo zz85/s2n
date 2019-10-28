@@ -90,18 +90,25 @@ S2N_BLOB_LABEL(s2n_tls13_label_finished, "finished")
 
 static const struct s2n_blob zero_length_blob = { .data = NULL, .size = 0 };
 
+/* Generate a key that will be use to compute finish hashes */
+int s2n_tls13_derive_finish_key(struct s2n_tls13_keys *keys, struct s2n_blob *secret_key, struct s2n_blob *output_finish_key) 
+{
+    GUARD(s2n_hkdf_expand_label(&keys->hmac, keys->hmac_algorithm, secret_key, &s2n_tls13_label_finished, &zero_length_blob, output_finish_key));
+    return 0;
+}
+
 int s2n_handle_tls13_secrets_update(struct s2n_connection *conn) {
-    struct s2n_blob client_shared_secret = { 0 };
+    struct s2n_blob shared_secret = { 0 };
 
     conn->secure.server_ecc_params.negotiated_curve = conn->secure.client_ecc_params[0].negotiated_curve;
 
     GUARD(s2n_ecc_compute_shared_secret_from_params(
         &conn->secure.client_ecc_params[0],
         &conn->secure.server_ecc_params,
-        &client_shared_secret));
+        &shared_secret));
 
     printf("[handshake] === Computed shared secret ===\n");
-    print_hex_blob(client_shared_secret);
+    print_hex_blob(shared_secret);
 
     // ---------- set up -------------
     struct s2n_tls13_keys secrets = {0};
@@ -121,7 +128,7 @@ int s2n_handle_tls13_secrets_update(struct s2n_connection *conn) {
     // chosen_hash_alg,
     struct s2n_hash_state hash_state = {0};
     GUARD(s2n_handshake_get_hash_state(conn, secrets.hash_algorithm, &hash_state));
-    GUARD(s2n_tls13_derive_handshake_secrets(&secrets, &client_shared_secret, &hash_state, &client_hs_secret, &server_hs_secret));
+    GUARD(s2n_tls13_derive_handshake_secrets(&secrets, &shared_secret, &hash_state, &client_hs_secret, &server_hs_secret));
 
     printf("%s", KYEL);
 
@@ -135,94 +142,137 @@ int s2n_handle_tls13_secrets_update(struct s2n_connection *conn) {
     printf("\n");
     printf("%s", KNRM);
 
-    // conn->secure.cipher_suite->record_alg->cipher->key_material_size
-
     printf("Key Material size: %d\n", conn->secure.cipher_suite->record_alg->cipher->key_material_size);
 
+    /* Server handshake secrets */
 
-   s2n_tls13_key_blob(s_hs_key, conn->secure.cipher_suite->record_alg->cipher->key_material_size);
-
-    struct s2n_blob s_hs_iv = { .data = conn->server->server_implicit_iv, .size = 12 };
-    s2n_blob_init(&s_hs_iv, conn->server->server_implicit_iv, 12);
-
+    s2n_tls13_key_blob(s_hs_key, conn->secure.cipher_suite->record_alg->cipher->key_material_size);
+    struct s2n_blob s_hs_iv = { .data = conn->secure.server_implicit_iv, .size = S2N_TLS13_FIXED_IV_LEN };
     GUARD(s2n_tls13_derive_traffic_keys(&secrets, &server_hs_secret, &s_hs_key, &s_hs_iv));
-    printf("--- HS IV --\n");
+
+    printf("--- Server HS IV --\n");
     print_hex(s_hs_iv.data, s_hs_iv.size);
 
-    printf("--- HS key --\n");
+    printf("--- Server HS key --\n");
     print_hex(s_hs_key.data, s_hs_key.size);
 
-    // struct s2n_session_key session_key = { 0 };
-    // EXPECT_SUCCESS(s2n_session_key_alloc(&session_key));
+    /* Client handshake secrets */
+
+    s2n_tls13_key_blob(c_hs_key, conn->secure.cipher_suite->record_alg->cipher->key_material_size);
+    struct s2n_blob c_hs_iv = { .data = conn->secure.client_implicit_iv, .size = S2N_TLS13_FIXED_IV_LEN };
+    GUARD(s2n_tls13_derive_traffic_keys(&secrets, &client_hs_secret, &c_hs_key, &c_hs_iv));
+
+    printf("--- Client HS IV --\n");
+    print_hex(c_hs_iv.data, c_hs_iv.size);
+
+    printf("--- Client HS key --\n");
+    print_hex(c_hs_key.data, c_hs_key.size);
 
 
     PRINT0("Cipher Init\n");
     printf("%d\n", conn->secure.cipher_suite->record_alg->cipher->type);
-    GUARD(conn->secure.cipher_suite->record_alg->cipher->init(&conn->server->server_key));
-    GUARD(conn->secure.cipher_suite->record_alg->cipher->set_decryption_key(&conn->server->server_key, &s_hs_key));
+    GUARD(conn->secure.cipher_suite->record_alg->cipher->init(&conn->secure.server_key));
+    GUARD(conn->secure.cipher_suite->record_alg->cipher->set_decryption_key(&conn->secure.server_key, &s_hs_key));
+    // GUARD(conn->secure.cipher_suite->record_alg->cipher->init(&conn->client->client_key));
+    GUARD(conn->secure.cipher_suite->record_alg->cipher->init(&conn->secure.client_key));
+    GUARD(conn->secure.cipher_suite->record_alg->cipher->set_encryption_key(&conn->secure.client_key, &c_hs_key));
 
-    // finished_key = HKDF
+    // PRINT0("server_hs_secret");
+    // print_hex_blob(server_hs_secret);
 
-    struct s2n_blob finished_key = {
-        .data = conn->handshake.server_finished,
-        .size = secrets.size
-    };
 
-    
-    PRINT0("server_hs_secret");
-    print_hex_blob(server_hs_secret);
-    
-    // calculate finish key
-    s2n_hkdf_expand_label(&secrets.hmac, secrets.hmac_algorithm, &server_hs_secret, &s2n_tls13_label_finished, &zero_length_blob, &finished_key);
+    // calculate server + client finish keys and store them in handshake struct
+    struct s2n_blob server_finished_key = { .data = conn->handshake.server_finished, .size = secrets.size };
+    s2n_tls13_derive_finish_key(&secrets, &server_hs_secret, &server_finished_key);
+
+    struct s2n_blob client_finished_key = { .data = conn->handshake.client_finished, .size = secrets.size };
+    s2n_tls13_derive_finish_key(&secrets, &client_hs_secret, &client_finished_key);
 
     PRINT0("Finish Key 0");
-    print_hex_blob(finished_key);
+    print_hex_blob(server_finished_key);
 
     return 0;
 }
 
-int server_finish_verify(struct s2n_connection *conn, struct s2n_tls13_keys *keys) {
-    struct s2n_hash_state hash_state = {0};
-    GUARD(s2n_handshake_get_hash_state(conn, keys->hash_algorithm, &hash_state));
 
 
+/* Based on a finished key and hash state, compute verify hash */
+int s2n_tls13_calculate_finish_verify(struct s2n_tls13_keys *keys, struct s2n_blob *finished_key, struct s2n_hash_state *hash_state, struct s2n_blob *finished_verify) {
+    /* Set up a blob to contain hash */
+    s2n_tls13_key_blob(transcribe_hash, keys->size);
+
+    /* Make a copy of the hash state */
     struct s2n_hash_state hash_state_copy;
     GUARD(s2n_hash_new(&hash_state_copy));
-    GUARD(s2n_hash_copy(&hash_state_copy, &hash_state)); // copy from bla into hash copy
-    s2n_tls13_key_blob(transcribe_hash, keys->size);
+    GUARD(s2n_hash_copy(&hash_state_copy, hash_state));
+
     GUARD(s2n_hash_digest(&hash_state_copy, transcribe_hash.data, transcribe_hash.size));
     GUARD(s2n_hash_free(&hash_state_copy));
 
-    PRINT0("Server Finish Ctx Hash\n");
     print_hex_blob(transcribe_hash);
 
-    s2n_tls13_key_blob(server_finish_verify, keys->size);
+    GUARD(s2n_hkdf_extract(&keys->hmac, keys->hmac_algorithm, finished_key, &transcribe_hash, finished_verify));
+
+    return 0;
+}
+
+// uint8_t** finish_keys
+static int wire_finish_verify(struct s2n_tls13_keys *keys, struct s2n_blob *finished_verify, struct s2n_blob *wire_verify) {
+    // check wire
+    notnull_check(wire_verify->data);
+    eq_check(wire_verify->size, keys->size);
+
+    PRINT0("Finish Verify");
+    print_hex_blob(*finished_verify);
+    PRINT0("Wire Verify");
+    print_hex_blob(*wire_verify);
+
+    S2N_ERROR_IF(!s2n_constant_time_equals(finished_verify->data, wire_verify->data, keys->size), S2N_ERR_BAD_MESSAGE);
+
+    return 0;
+}
+
+
+int server_finish_verify(struct s2n_connection *conn, struct s2n_tls13_keys *keys, struct s2n_blob *verify) {
+    struct s2n_hash_state hash_state = {0};
+    GUARD(s2n_handshake_get_hash_state(conn, keys->hash_algorithm, &hash_state));
+
+    s2n_tls13_key_blob(server_finish_verify, keys->size);  
 
     struct s2n_blob finished_key = {
         .data = conn->handshake.server_finished,
         .size = keys->size
     };
 
-    PRINT0("Finish Key");
-    print_hex_blob(finished_key);
-
-    /*
-        verify_data =
-          HMAC(finished_key,
-               Transcript-Hash(Handshake Context,
-            Certificate*, CertificateVerify*))
-    */
-    GUARD(s2n_hkdf_extract(&keys->hmac, keys->hmac_algorithm, &finished_key, &transcribe_hash, &server_finish_verify));
-
-    PRINT0("Server Finish Verify\n");
-    print_hex_blob(server_finish_verify);
+    GUARD(s2n_tls13_calculate_finish_verify(keys, &finished_key, &hash_state, &server_finish_verify));
+    wire_finish_verify(keys, &server_finish_verify, verify);
 
     return 0;
 }
 
+int client_finish_verify(struct s2n_connection *conn, struct s2n_tls13_keys *keys, struct s2n_blob *verify) {
+    // get hash state
+    struct s2n_hash_state hash_state = {0};
+    GUARD(s2n_handshake_get_hash_state(conn, keys->hash_algorithm, &hash_state));
 
-// static calculate_finish_key() TODO
-// 
+    PRINT0("client Finish Ctx Hash\n");
+    
+    s2n_tls13_key_blob(client_finish_verify, keys->size);  
+
+    struct s2n_blob finished_key = {
+        .data = conn->handshake.client_finished,
+        .size = keys->size
+    };
+
+    PRINT0("client Finish Key");
+    print_hex_blob(finished_key);
+
+    GUARD(s2n_tls13_calculate_finish_verify(keys, &finished_key, &hash_state, &client_finish_verify));
+    wire_finish_verify(keys, &client_finish_verify, verify);
+
+    return 0;
+}
+
 
 
 /* Message transcript hash based on selected HMAC algorithm */

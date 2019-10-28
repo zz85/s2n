@@ -295,13 +295,13 @@ extern const char *s2n_connection_get_last_message_name(struct s2n_connection *c
 } while (0)
 
 #define STACKTRACE void* callstack[128];\
-    PRINT0("strack trace\n");\
+    { PRINT0("strack trace\n");\
      int i, frames = backtrace(callstack, 128);\
      char** strs = backtrace_symbols(callstack, frames);\
      for (i = 0; i < frames; ++i) {\
          printf("%s\n", strs[i]);\
      }\
-     free(strs);
+     free(strs); }
 
 
 #ifdef __cplusplus

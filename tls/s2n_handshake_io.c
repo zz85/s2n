@@ -12,7 +12,7 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
-
+#include <unistd.h>
 #include <sys/param.h>
 
 #include <errno.h>
@@ -382,21 +382,21 @@ static message_type_t tls13_handshakes[S2N_HANDSHAKES_COUNT][S2N_MAX_HANDSHAKE_L
     [NEGOTIATED] = {
             CLIENT_HELLO,
             SERVER_HELLO, SERVER_CHANGE_CIPHER_SPEC, ENCRYPTED_EXTENSIONS, SERVER_FINISHED,
-            CLIENT_CHANGE_CIPHER_SPEC, CLIENT_FINISHED,
+            CLIENT_FINISHED,
             APPLICATION_DATA
     },
 
     [NEGOTIATED | FULL_HANDSHAKE] = {
             CLIENT_HELLO,
             SERVER_HELLO, SERVER_CHANGE_CIPHER_SPEC, ENCRYPTED_EXTENSIONS, SERVER_CERT, SERVER_CERT_VERIFY, SERVER_FINISHED,
-            CLIENT_CHANGE_CIPHER_SPEC, CLIENT_FINISHED,
+            CLIENT_FINISHED,
             APPLICATION_DATA
     },
 
     [NEGOTIATED | FULL_HANDSHAKE | CLIENT_AUTH] = {
             CLIENT_HELLO,
             SERVER_HELLO, SERVER_CHANGE_CIPHER_SPEC, ENCRYPTED_EXTENSIONS, SERVER_CERT_REQ, SERVER_CERT, SERVER_CERT_VERIFY, SERVER_FINISHED,
-            CLIENT_CHANGE_CIPHER_SPEC, CLIENT_CERT, CLIENT_CERT_VERIFY, CLIENT_FINISHED,
+            CLIENT_CERT, CLIENT_CERT_VERIFY, CLIENT_FINISHED,
             APPLICATION_DATA
     },
 
@@ -445,7 +445,7 @@ message_type_t s2n_conn_get_current_message_type(struct s2n_connection *conn)
 static int s2n_advance_message(struct s2n_connection *conn)
 {
     printf("Advancing.... TLS 13? %d\n", IS_TLS13_HANDSHAKE(conn));
-    STACKTRACE;
+    // STACKTRACE;
 
     printf("s2n_advance_message: current: %s -> ", s2n_connection_get_last_message_name(conn));
 
@@ -467,6 +467,7 @@ static int s2n_advance_message(struct s2n_connection *conn)
             EXPECTED_RECORD_TYPE(conn) == TLS_CHANGE_CIPHER_SPEC &&
             IS_TLS13_HANDSHAKE(conn)) {
                 PRINT0("Skip CCS\n");
+                STACKTRACE;
         return s2n_advance_message(conn);
     }
 
@@ -634,6 +635,8 @@ const char *s2n_connection_get_handshake_type_name(struct s2n_connection *conn)
 
 static int s2n_conn_update_handshake_hashes(struct s2n_connection *conn, struct s2n_blob *data)
 {
+    PRINT0("s2n_conn_update_handshake_hashes");
+    STACKTRACE;
     if (s2n_handshake_is_hash_required(&conn->handshake, S2N_HASH_MD5)) {
         /* The handshake MD5 hash state will fail the s2n_hash_is_available() check
          * since MD5 is not permitted in FIPS mode. This check will not be used as
@@ -695,7 +698,9 @@ static int s2n_conn_update_handshake_hashes(struct s2n_connection *conn, struct 
  */
 static int handshake_write_io(struct s2n_connection *conn)
 {
+    PRINT0("handshake_write_io()");
     uint8_t record_type = EXPECTED_RECORD_TYPE(conn);
+    printf("Record_type %d\n", record_type);
     s2n_blocked_status blocked = S2N_NOT_BLOCKED;
 
     /* Populate handshake.io with header/payload for the current state, once.
@@ -703,35 +708,65 @@ static int handshake_write_io(struct s2n_connection *conn)
      * to handshake_write_io and a repeated call after an EWOULDBLOCK.
      */
     if (conn->handshake.io.wiped == 1) {
+        PRINT0("conn->handshake.io.wiped");
         if (record_type == TLS_HANDSHAKE) {
             GUARD(s2n_handshake_write_header(conn, ACTIVE_STATE(conn).message_type));
         }
+        debug_stuffer(&conn->handshake.io);
         GUARD(ACTIVE_STATE(conn).handler[conn->mode] (conn));
         if (record_type == TLS_HANDSHAKE) {
             GUARD(s2n_handshake_finish_header(conn));
         }
+        debug_stuffer(&conn->handshake.io);
     }
+
+    // if (conn->actual_protocol_version == S2N_TLS13 && EXPECTED_MESSAGE_TYPE(conn) == CLIENT_CHANGE_CIPHER_SPEC) {
+    //     s2n_stuffer_write_uint8(&conn->handshake.io, record_type);
+    //     PRINT0("adding handshake type");
+    // }
+
 
     /* Write the handshake data to records in fragment sized chunks */
     struct s2n_blob out = {0};
     while (s2n_stuffer_data_available(&conn->handshake.io) > 0) {
         int max_payload_size;
         GUARD((max_payload_size = s2n_record_max_write_payload_size(conn)));
-        out.size = MIN(s2n_stuffer_data_available(&conn->handshake.io), max_payload_size);
 
+        if (conn->actual_protocol_version == S2N_TLS13 && EXPECTED_MESSAGE_TYPE(conn) == TLS_FINISHED) {
+            PRINT0("CLIENT_FINISHED");
+            s2n_stuffer_write_uint8(&conn->handshake.io, record_type);
+        }
+
+        out.size = MIN(s2n_stuffer_data_available(&conn->handshake.io), max_payload_size);
+        printf("max_payload_size max: %d - min: %d\n", max_payload_size, out.size);
         out.data = s2n_stuffer_raw_read(&conn->handshake.io, out.size);
+
+        print_hex_blob(out);
         notnull_check(out.data);
 
         /* Make the actual record */
         GUARD(s2n_record_write(conn, record_type, &out));
 
         /* MD5 and SHA sum the handshake data too */
+        PRINT0("update hs??");
         if (record_type == TLS_HANDSHAKE) {
-            GUARD(s2n_conn_update_handshake_hashes(conn, &out));
+            if (conn->actual_protocol_version == S2N_TLS13 && EXPECTED_MESSAGE_TYPE(conn) == CLIENT_CHANGE_CIPHER_SPEC) {
+                PRINT0("CLIENT_CHANGE_CIPHER_SPEC");
+            } else {
+                PRINT0("Yup");
+                GUARD(s2n_conn_update_handshake_hashes(conn, &out));
+            }
         }
 
         /* Actually send the record. We could block here. Assume the caller will call flush before coming back. */
         GUARD(s2n_flush(conn, &blocked));
+
+        if (conn->actual_protocol_version == S2N_TLS13 && EXPECTED_MESSAGE_TYPE(conn) == TLS_FINISHED) {
+            printf("\n\n\n\n\n");
+            sleep(5);
+            return 0;
+        }
+
     }
 
     /* We're done sending the last record, reset everything */
@@ -830,6 +865,7 @@ static int s2n_handshake_handle_sslv2(struct s2n_connection *conn)
     /* We're done with the record, wipe it */
     GUARD(s2n_stuffer_wipe(&conn->header_in));
     GUARD(s2n_stuffer_wipe(&conn->in));
+    PRINT0("IN_STATUS=ENCRYPYTED");
     conn->in_status = ENCRYPTED;
 
     /* Advance the state machine */
@@ -868,6 +904,7 @@ static int s2n_handshake_handle_app_data(struct s2n_connection *conn) {
     }
 
 done:
+    PRINT0("IN_STATUS=ENCRYPYTED");
     conn->in_status = ENCRYPTED;
 
     return 0;
@@ -885,8 +922,9 @@ static int handshake_read_io(struct s2n_connection *conn)
     uint8_t record_type;
     int isSSLv2;
 
+    printf("[handshake] handshake_read_io().");
     GUARD(s2n_read_full_record(conn, &record_type, &isSSLv2));
-    printf("[handshake] handshake_read_io(). Record type: %d\n", record_type);
+    printf("Record type: %d\n", record_type);
 
     if (isSSLv2) {
         GUARD(s2n_handshake_handle_sslv2(conn));
@@ -897,55 +935,70 @@ static int handshake_read_io(struct s2n_connection *conn)
      */
     // S2N_ERROR_IF(record_type == TLS_APPLICATION_DATA, S2N_ERR_BAD_MESSAGE);
 
+    printf("record_type ccs? %d\n", record_type);
+
     if (record_type == TLS_APPLICATION_DATA) {
         PRINT0("[handshake] APP MODE! Probably TLS 1.3 encrypted payload.. reading record again!\n");
 
-        uint8_t handshake_type; // content_type
-        uint32_t length;
+        // last 1 byte for content type
+        while (s2n_stuffer_data_available(&conn->in) > 1) {
+            uint8_t handshake_type; // content_type
+            uint32_t length;
 
-        uint32_t read_pointer = conn->in.read_cursor;
-        printf("read_pointer %d\n", read_pointer);
-        GUARD(s2n_stuffer_read_uint8(&conn->in, &handshake_type));
-        GUARD(s2n_stuffer_read_uint24(&conn->in, &length));
+            uint32_t read_pointer = conn->in.read_cursor;
+            printf("read_pointer %d\n", read_pointer);
+            GUARD(s2n_stuffer_read_uint8(&conn->in, &handshake_type));
+            GUARD(s2n_stuffer_read_uint24(&conn->in, &length));
 
-        printf("handshake_type: %d\n", handshake_type);
-        printf("length: %d\n", length);
+            printf("handshake_type: %d\n", handshake_type);
+            printf("length: %d\n", length);
 
-        printf("available: %d\n", s2n_stuffer_data_available(&conn->in));
-        DEBUG_STUFFER(&conn->handshake.io);
-        GUARD(s2n_stuffer_copy(&conn->in, &conn->handshake.io, length));
-        // s2n_stuffer_data_available(&conn->in) is 1 more than length
-        PRINT0("After\n");
-        DEBUG_STUFFER(&conn->handshake.io);
+            printf("available: %d\n", s2n_stuffer_data_available(&conn->in));
+            DEBUG_STUFFER(&conn->handshake.io);
+            GUARD(s2n_stuffer_copy(&conn->in, &conn->handshake.io, length));
 
-        PRINT0("Execute HS App handler\n");
-        printf("??? current: %s! \n", s2n_connection_get_last_message_name(conn));
-        GUARD(ACTIVE_STATE(conn).handler[conn->mode] (conn));
-        
-        // 
-        // GUARD(s2n_stuffer_reread(&conn->handshake.io));
-        // GUARD(s2n_handshake_conn_update_hashes(conn));
+            PRINT0("After\n");
+            DEBUG_STUFFER(&conn->in);
+            
+            printf("available2: %d\n", s2n_stuffer_data_available(&conn->in));
 
-        // DIY update connection hashes
+            PRINT0("Execute HS App handler\n");
+            printf("??? current: %s! \n", s2n_connection_get_last_message_name(conn));
+            GUARD(ACTIVE_STATE(conn).handler[conn->mode] (conn));
+            GUARD(s2n_advance_message(conn));
 
-        struct s2n_blob handshake_record = {0};
-        handshake_record.data = &conn->in.blob.data[read_pointer];
-        handshake_record.size = 4 + length;
-        PRINT0("RECORD");
-        print_hex_blob(handshake_record);
-        notnull_check(handshake_record.data);
+            // Check for more messages.
+            
+            // DIY update connection hashes
+            struct s2n_blob handshake_record = {0};
+            handshake_record.data = &conn->in.blob.data[read_pointer];
+            handshake_record.size = 4 + length;
+            PRINT0("RECORD");
+            print_hex_blob(handshake_record);
+            notnull_check(handshake_record.data);
 
-        /* MD5 and SHA sum the handshake data too */
-        GUARD(s2n_conn_update_handshake_hashes(conn, &handshake_record));
-        
+            /* update handshake hashes */
+            
+            // if (handshake_record.data[0] != 20 || handshake_record.data[0] != 20) {
+                printf("updating hashs: ok -- ");
+                GUARD(s2n_conn_update_handshake_hashes(conn, &handshake_record));
+            // } else {
+            //     printf("updating hashs: noo -- ");
+            // }
+                
 
-        GUARD(s2n_stuffer_wipe(&conn->handshake.io));
+            // if (server_finish) {
+                // calculate client_finish.
+            // }
+            
+
+            GUARD(s2n_stuffer_wipe(&conn->handshake.io));
+        }
         /* We're done with the record, wipe it */
         GUARD(s2n_stuffer_wipe(&conn->header_in));
         GUARD(s2n_stuffer_wipe(&conn->in));
+        PRINT0("IN_STATUS=ENCRYPYTED");
         conn->in_status = ENCRYPTED;
-
-        GUARD(s2n_advance_message(conn));
 
         return 0;
     } 
@@ -957,13 +1010,15 @@ static int handshake_read_io(struct s2n_connection *conn)
         S2N_ERROR_IF(s2n_stuffer_data_available(&conn->in) != 1, S2N_ERR_BAD_MESSAGE);
 
         GUARD(s2n_stuffer_copy(&conn->in, &conn->handshake.io, s2n_stuffer_data_available(&conn->in)));
-
+       
+        printf("CCS: %s! \n", s2n_connection_get_last_message_name(conn));
         GUARD(CCS_STATE(conn).handler[conn->mode] (conn));
         GUARD(s2n_stuffer_wipe(&conn->handshake.io));
 
         /* We're done with the record, wipe it */
         GUARD(s2n_stuffer_wipe(&conn->header_in));
         GUARD(s2n_stuffer_wipe(&conn->in));
+        PRINT0("IN_STATUS=ENCRYPYTED");
         conn->in_status = ENCRYPTED;
 
         /* Advance the state machine if this was an expected message */
@@ -972,7 +1027,7 @@ static int handshake_read_io(struct s2n_connection *conn)
             GUARD(s2n_advance_message(conn));
         }
     
-        return 0;
+        // return 0;
     } else if (record_type != TLS_HANDSHAKE) {
         if (record_type == TLS_ALERT) {
             GUARD(s2n_process_alert_fragment(conn));
@@ -983,6 +1038,7 @@ static int handshake_read_io(struct s2n_connection *conn)
         /* We're done with the record, wipe it */
         GUARD(s2n_stuffer_wipe(&conn->header_in));
         GUARD(s2n_stuffer_wipe(&conn->in));
+        PRINT0("IN_STATUS=ENCRYPYTED");
         conn->in_status = ENCRYPTED;
         return 0;
     }
@@ -1000,6 +1056,7 @@ static int handshake_read_io(struct s2n_connection *conn)
              */
             GUARD(s2n_stuffer_wipe(&conn->header_in));
             GUARD(s2n_stuffer_wipe(&conn->in));
+            PRINT0("IN_STATUS=ENCRYPYTED");
             conn->in_status = ENCRYPTED;
             return 0;
         }
@@ -1049,6 +1106,7 @@ static int handshake_read_io(struct s2n_connection *conn)
     /* We're done with the record, wipe it */
     GUARD(s2n_stuffer_wipe(&conn->header_in));
     GUARD(s2n_stuffer_wipe(&conn->in));
+    PRINT0("IN_STATUS=ENCRYPYTED");
     conn->in_status = ENCRYPTED;
 
     return 0;
@@ -1071,12 +1129,15 @@ int s2n_negotiate(struct s2n_connection *conn, s2n_blocked_status * blocked)
     }
 
     while (ACTIVE_STATE(conn).writer != 'B') {
+        printf("s2n_negotiate: current: %s (%c) \n", s2n_connection_get_last_message_name(conn), ACTIVE_STATE(conn).writer);
+
         /* Flush any pending I/O or alert messages */
         GUARD(s2n_flush(conn, blocked));
 
         if (ACTIVE_STATE(conn).writer == 'A') {
             /* We are in a state that is blocked on application data */
             *blocked = S2N_BLOCKED_ON_APPLICATION_INPUT;
+            PRINT0("S2N_BLOCKED_ON_APPLICATION_INPUT");
 
             int r = s2n_handshake_handle_app_data(conn);
             if (r < 0) {
@@ -1091,8 +1152,11 @@ int s2n_negotiate(struct s2n_connection *conn, s2n_blocked_status * blocked)
                 return S2N_FAILURE;
             }
         } else if (ACTIVE_STATE(conn).writer == this) {
+            PRINT0("S2N_BLOCKED_ON_WRITE");
             *blocked = S2N_BLOCKED_ON_WRITE;
+            // GUARD(handshake_write_io(conn));
             if (handshake_write_io(conn) < 0 && s2n_errno != S2N_ERR_BLOCKED) {
+                PRINT0(" Non-retryable write error");
                 /* Non-retryable write error. The peer might have sent an alert. Try and read it. */
                 const int write_errno = errno;
                 const int write_s2n_errno = s2n_errno;

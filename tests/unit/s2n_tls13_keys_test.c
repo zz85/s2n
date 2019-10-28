@@ -42,8 +42,14 @@
 int main(int argc, char **argv)
 {
     /* TLS 1.3 Test Vectors from https://tools.ietf.org/html/rfc8448 */
-    S2N_BLOB_FROM_HEX(expected_early_secret, "33ad0a1c607ec03b09e6cd9893680ce210adf300aa1f2660e1b22e10f170f92a");
-    S2N_BLOB_FROM_HEX(expect_derived_handshake_secret, "6f2615a108c702c5678f54fc9dbab69716c076189c48250cebeac3576c3611ba");
+
+    S2N_BLOB_FROM_HEX(expected_early_secret,
+        "33ad0a1c607ec03b09e6cd9893680ce2"
+        "10adf300aa1f2660e1b22e10f170f92a");
+
+    S2N_BLOB_FROM_HEX(expect_derived_handshake_secret,
+        "6f2615a108c702c5678f54fc9dba"
+        "b69716c076189c48250cebeac3576c3611ba");
 
     S2N_BLOB_FROM_HEX(client_hello,
         "010000c00303cb34ecb1e78163"
@@ -106,26 +112,50 @@ int main(int argc, char **argv)
         "140000209b9b141d906337fbd2cb"
         "dce71df4deda4ab42c309572cb7fffee5454b78f07"
         "18");
-
+    
     S2N_BLOB_FROM_HEX(expect_server_finished_verify,
         "9b9b141d906337fbd2cbdce71df4"
         "deda4ab42c309572cb7fffee5454b78f0718");
+    S2N_BLOB_FROM_HEX(expect_client_finished_verify,
+        "a8ec436d677634ae525ac1fcebe1"
+        "1a039ec17694fac6e98527b642f2edd5ce61");
 
-    S2N_BLOB_FROM_HEX(ecdhe, "8bd4054fb55b9d63fdfbacf9f04b9f0d35e6d63f537563efd46272900f89492d");
+    S2N_BLOB_FROM_HEX(ecdhe,
+        "8bd4054fb55b9d63fdfbacf9f04b9f0d"
+        "35e6d63f537563efd46272900f89492d");
 
-    S2N_BLOB_FROM_HEX(expect_derived_client_handshake_secret, "b3eddb126e067f35a780b3abf45e2d8f3b1a950738f52e9600746a0e27a55a21");
-    S2N_BLOB_FROM_HEX(expect_derived_server_handshake_secret, "b67b7d690cc16c4e75e54213cb2d37b4e9c912bcded9105d42befd59d391ad38");
+    S2N_BLOB_FROM_HEX(expect_derived_client_handshake_secret,
+        "b3eddb126e067f35a780b3abf45e"
+        "2d8f3b1a950738f52e9600746a0e27a55a21");
 
-    S2N_BLOB_FROM_HEX(expect_derived_master_secret, "43de77e0c77713859a944db9db2590b53190a65b3ee2e4f12dd7a0bb7ce254b4");
-    S2N_BLOB_FROM_HEX(expect_extract_master_secret, "18df06843d13a08bf2a449844c5f8a478001bc4d4c627984d5a41da8d0402919");
+    S2N_BLOB_FROM_HEX(expect_derived_server_handshake_secret,
+        "b67b7d690cc16c4e75e54213cb2d"
+        "37b4e9c912bcded9105d42befd59d391ad38");
+
+    S2N_BLOB_FROM_HEX(expect_derived_master_secret,
+        "43de77e0c77713859a944db9db25"
+        "90b53190a65b3ee2e4f12dd7a0bb7ce254b4");
+
+    S2N_BLOB_FROM_HEX(expect_extract_master_secret,
+        "18df06843d13a08bf2a449844c5f8a"
+        "478001bc4d4c627984d5a41da8d0402919");
     
-    S2N_BLOB_FROM_HEX(expect_derived_client_application_traffic_secret, "9e40646ce79a7f9dc05af8889bce6552875afa0b06df0087f792ebb7c17504a5");
-    S2N_BLOB_FROM_HEX(expect_derived_server_application_traffic_secret, "a11af9f05531f856ad47116b45a950328204b4f44bfb6b3a4b4f1f3fcb631643");
+    S2N_BLOB_FROM_HEX(expect_derived_client_application_traffic_secret,
+        "9e40646ce79a7f9dc05af8889bce"
+        "6552875afa0b06df0087f792ebb7c17504a5");
+    S2N_BLOB_FROM_HEX(expect_derived_server_application_traffic_secret,
+        "a11af9f05531f856ad47116b45a9"
+        "50328204b4f44bfb6b3a4b4f1f3fcb631643");
 
-    S2N_BLOB_FROM_HEX(expect_handshake_traffic_server_key, "3fce516009c21727d0f2e4e86ee403bc");
-    S2N_BLOB_FROM_HEX(expect_handshake_traffic_server_iv, "5d313eb2671276ee13000b30");
+    S2N_BLOB_FROM_HEX(expect_handshake_traffic_server_key,
+        "3fce516009c21727d0f2e4e86ee403bc");
 
-    S2N_BLOB_FROM_HEX(expect_derived_client_handshake_secret_digest, "860c06edc07858ee8e78f0e7428c58edd6b43f2ca3e6e95f02ed063cf0e1cad8");
+    S2N_BLOB_FROM_HEX(expect_handshake_traffic_server_iv,
+        "5d313eb2671276ee13000b30");
+
+    S2N_BLOB_FROM_HEX(expect_derived_client_handshake_secret_digest,
+        "860c06edc07858ee8e78f0e7428c58ed"
+        "d6b43f2ca3e6e95f02ed063cf0e1cad8");
 
     BEGIN_TEST();
 
@@ -166,49 +196,34 @@ int main(int argc, char **argv)
     S2N_BLOB_EXPECT_EQUAL(expect_derived_master_secret, secrets.derive_secret);
 
     /* Derive Application Secrets */
-
     s2n_tls13_key_blob(client_application_secret, secrets.size);
     s2n_tls13_key_blob(server_application_secret, secrets.size);
 
+    /* Update encrypted handshake hashed */
     EXPECT_SUCCESS(s2n_hash_update(&hash_state, encrypted_extensions.data, encrypted_extensions.size));
     EXPECT_SUCCESS(s2n_hash_update(&hash_state, certificate.data, certificate.size));
     EXPECT_SUCCESS(s2n_hash_update(&hash_state, certificate_verify.data, certificate_verify.size));
     
-    s2n_stack_blob(calc_finished_key, secrets.size, S2N_TLS13_SECRET_MAX_LEN);
+    /* Derive server finish key */
+    s2n_stack_blob(server_finish_secret, secrets.size, S2N_TLS13_SECRET_MAX_LEN);
+    EXPECT_SUCCESS(s2n_tls13_derive_finish_key(&secrets, &server_handshake_secret, &server_finish_secret));
 
-    const struct s2n_blob zero_length_blob = { .data = NULL, .size = 0 };
-    s2n_hkdf_expand_label(&secrets.hmac, secrets.hmac_algorithm, &expect_derived_server_handshake_secret, &s2n_tls13_label_finished, &zero_length_blob, &calc_finished_key);
-    
-    PRINT0("Calc Finish Key\n");
-    print_hex_blob(calc_finished_key);
+    s2n_tls13_key_blob(server_finish_verify, secrets.size);
+    EXPECT_SUCCESS(s2n_tls13_calculate_finish_verify(&secrets, &server_finish_secret, &hash_state, &server_finish_verify));
 
-    EXPECT_SUCCESS(s2n_hash_new(&hash_state_copy));
-    EXPECT_SUCCESS(s2n_hash_copy(&hash_state_copy, &hash_state));
+    S2N_BLOB_EXPECT_EQUAL(expect_server_finished_verify, server_finish_verify);
 
-    s2n_tls13_key_blob(server_finish_ctx_hash, secrets.size);
-    EXPECT_SUCCESS(s2n_hash_digest(&hash_state_copy, server_finish_ctx_hash.data, server_finish_ctx_hash.size));
-
-    EXPECT_SUCCESS(s2n_hash_free(&hash_state_copy));
-
-    PRINT0("Server Finish Ctx Hash\n");
-    print_hex_blob(server_finish_ctx_hash);
-
-    s2n_tls13_key_blob(test_server_finish, secrets.size);
-
-    /*
-        verify_data =
-          HMAC(finished_key,
-               Transcript-Hash(Handshake Context,
-            Certificate*, CertificateVerify*))
-    */
-    s2n_hkdf_extract(&secrets.hmac, secrets.hmac_algorithm, &calc_finished_key, &server_finish_ctx_hash, &test_server_finish);
-
-    PRINT0("Server Finish HMAC\n");
-    print_hex_blob(test_server_finish);
-
-    S2N_BLOB_EXPECT_EQUAL(expect_server_finished_verify, test_server_finish);
-
+    /* update server finish hashes */
     EXPECT_SUCCESS(s2n_hash_update(&hash_state, server_finished.data, server_finished.size));
+
+    s2n_stack_blob(client_finish_secret, secrets.size, S2N_TLS13_SECRET_MAX_LEN);
+    EXPECT_SUCCESS(s2n_tls13_derive_finish_key(&secrets, &client_handshake_secret, &client_finish_secret));
+
+    s2n_tls13_key_blob(client_finish_verify, secrets.size);
+    EXPECT_SUCCESS(s2n_tls13_calculate_finish_verify(&secrets, &client_finish_secret, &hash_state, &client_finish_verify));
+
+    /* client finish verify */
+    S2N_BLOB_EXPECT_EQUAL(expect_client_finished_verify, client_finish_verify);
 
     EXPECT_SUCCESS(s2n_tls13_derive_application_secrets(&secrets, &hash_state, &client_application_secret, &server_application_secret));
     S2N_BLOB_EXPECT_EQUAL(expect_extract_master_secret, secrets.extract_secret);
@@ -217,7 +232,6 @@ int main(int argc, char **argv)
     S2N_BLOB_EXPECT_EQUAL(expect_derived_server_application_traffic_secret, server_application_secret);
 
     /* Test Traffic Keys */
-
     s2n_tls13_key_blob(handshake_traffic_client_key, 16);
     s2n_tls13_key_blob(handshake_traffic_client_iv, 12);
 
@@ -236,7 +250,6 @@ int main(int argc, char **argv)
 
     S2N_BLOB_EXPECT_EQUAL(expect_handshake_traffic_server_key, handshake_traffic_server_key);
     S2N_BLOB_EXPECT_EQUAL(expect_handshake_traffic_server_iv, handshake_traffic_server_iv);
-
 
     /* Free stuffers */
     S2N_BLOB_FREE(expected_early_secret);
