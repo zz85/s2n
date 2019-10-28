@@ -44,8 +44,6 @@ int s2n_tls13_server_finished_recv(struct s2n_connection *conn) {
 
     s2n_tls13_keys_init(&keys, conn->secure.cipher_suite->tls12_prf_alg);
 
-    server_finish_verify(conn, &keys);
-
     PRINT0("Wire Verify\n");
     // debug_stuffer(&conn->handshake.io);
 
@@ -56,6 +54,10 @@ int s2n_tls13_server_finished_recv(struct s2n_connection *conn) {
     };
 
     print_hex_blob(wire_server_finished_verify);
+
+    GUARD(server_finish_verify(conn, &keys, &wire_server_finished_verify));
+
+    PRINT0("Verify Ok\n");
 
     return 0;
 }

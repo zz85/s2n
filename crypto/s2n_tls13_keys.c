@@ -181,7 +181,12 @@ int s2n_handle_tls13_secrets_update(struct s2n_connection *conn) {
     return 0;
 }
 
-int server_finish_verify(struct s2n_connection *conn, struct s2n_tls13_keys *keys) {
+int server_finish_verify(struct s2n_connection *conn, struct s2n_tls13_keys *keys, struct s2n_blob *verify) {
+    // check wire
+
+    notnull_check(verify->data);
+    eq_check(verify->size, keys->size);
+
     struct s2n_hash_state hash_state = {0};
     GUARD(s2n_handshake_get_hash_state(conn, keys->hash_algorithm, &hash_state));
 
@@ -216,6 +221,8 @@ int server_finish_verify(struct s2n_connection *conn, struct s2n_tls13_keys *key
 
     PRINT0("Server Finish Verify\n");
     print_hex_blob(server_finish_verify);
+
+    S2N_ERROR_IF(!s2n_constant_time_equals(server_finish_verify.data, verify->data, keys->size), S2N_ERR_BAD_MESSAGE);
 
     return 0;
 }
