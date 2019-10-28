@@ -63,6 +63,7 @@ int s2n_client_ccs_recv(struct s2n_connection *conn)
 
 int s2n_server_ccs_recv(struct s2n_connection *conn)
 {
+    PRINT0("s2n_server_ccs_recv()");
     GUARD(s2n_basic_ccs_recv(conn));
 
     /* Zero the sequence number */

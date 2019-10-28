@@ -43,6 +43,9 @@ int s2n_read_full_record(struct s2n_connection *conn, uint8_t * record_type, int
 
     *isSSLv2 = 0;
 
+    PRINT0("s2n_read_full_record");
+    // STACKTRACE;
+
     /* If the record has already been decrypted, then leave it alone */
     if (conn->in_status == PLAINTEXT) {
         /* Only application data packets count as plaintext */
@@ -190,6 +193,7 @@ ssize_t s2n_recv(struct s2n_connection * conn, void *buf, ssize_t size, s2n_bloc
 
             GUARD(s2n_stuffer_wipe(&conn->header_in));
             GUARD(s2n_stuffer_wipe(&conn->in));
+            PRINT0("IN_STATUS=ENCRYPYTED");
             conn->in_status = ENCRYPTED;
             continue;
         }
@@ -206,6 +210,7 @@ ssize_t s2n_recv(struct s2n_connection * conn, void *buf, ssize_t size, s2n_bloc
         if (s2n_stuffer_data_available(&conn->in) == 0) {
             GUARD(s2n_stuffer_wipe(&conn->header_in));
             GUARD(s2n_stuffer_wipe(&conn->in));
+            PRINT0("IN_STATUS=ENCRYPYTED");
             conn->in_status = ENCRYPTED;
         }
 

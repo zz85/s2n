@@ -445,7 +445,7 @@ message_type_t s2n_conn_get_current_message_type(struct s2n_connection *conn)
 static int s2n_advance_message(struct s2n_connection *conn)
 {
     printf("Advancing.... TLS 13? %d\n", IS_TLS13_HANDSHAKE(conn));
-    STACKTRACE;
+    // STACKTRACE;
 
     printf("s2n_advance_message: current: %s -> ", s2n_connection_get_last_message_name(conn));
 
@@ -467,6 +467,7 @@ static int s2n_advance_message(struct s2n_connection *conn)
             EXPECTED_RECORD_TYPE(conn) == TLS_CHANGE_CIPHER_SPEC &&
             IS_TLS13_HANDSHAKE(conn)) {
                 PRINT0("Skip CCS\n");
+                STACKTRACE;
         return s2n_advance_message(conn);
     }
 
@@ -634,6 +635,7 @@ const char *s2n_connection_get_handshake_type_name(struct s2n_connection *conn)
 
 static int s2n_conn_update_handshake_hashes(struct s2n_connection *conn, struct s2n_blob *data)
 {
+    PRINT0("s2n_conn_update_handshake_hashes");
     if (s2n_handshake_is_hash_required(&conn->handshake, S2N_HASH_MD5)) {
         /* The handshake MD5 hash state will fail the s2n_hash_is_available() check
          * since MD5 is not permitted in FIPS mode. This check will not be used as
@@ -830,6 +832,7 @@ static int s2n_handshake_handle_sslv2(struct s2n_connection *conn)
     /* We're done with the record, wipe it */
     GUARD(s2n_stuffer_wipe(&conn->header_in));
     GUARD(s2n_stuffer_wipe(&conn->in));
+    PRINT0("IN_STATUS=ENCRYPYTED");
     conn->in_status = ENCRYPTED;
 
     /* Advance the state machine */
@@ -868,6 +871,7 @@ static int s2n_handshake_handle_app_data(struct s2n_connection *conn) {
     }
 
 done:
+    PRINT0("IN_STATUS=ENCRYPYTED");
     conn->in_status = ENCRYPTED;
 
     return 0;
@@ -885,8 +889,9 @@ static int handshake_read_io(struct s2n_connection *conn)
     uint8_t record_type;
     int isSSLv2;
 
+    printf("[handshake] handshake_read_io().");
     GUARD(s2n_read_full_record(conn, &record_type, &isSSLv2));
-    printf("[handshake] handshake_read_io(). Record type: %d\n", record_type);
+    printf("Record type: %d\n", record_type);
 
     if (isSSLv2) {
         GUARD(s2n_handshake_handle_sslv2(conn));
@@ -896,6 +901,8 @@ static int handshake_read_io(struct s2n_connection *conn)
      * contain several messages.
      */
     // S2N_ERROR_IF(record_type == TLS_APPLICATION_DATA, S2N_ERR_BAD_MESSAGE);
+
+    printf("record_type ccs? %d\n", record_type);
 
     if (record_type == TLS_APPLICATION_DATA) {
         PRINT0("[handshake] APP MODE! Probably TLS 1.3 encrypted payload.. reading record again!\n");
@@ -921,13 +928,11 @@ static int handshake_read_io(struct s2n_connection *conn)
         PRINT0("Execute HS App handler\n");
         printf("??? current: %s! \n", s2n_connection_get_last_message_name(conn));
         GUARD(ACTIVE_STATE(conn).handler[conn->mode] (conn));
+        GUARD(s2n_advance_message(conn));
+
+        // Check for more messages.
         
-        // 
-        // GUARD(s2n_stuffer_reread(&conn->handshake.io));
-        // GUARD(s2n_handshake_conn_update_hashes(conn));
-
         // DIY update connection hashes
-
         struct s2n_blob handshake_record = {0};
         handshake_record.data = &conn->in.blob.data[read_pointer];
         handshake_record.size = 4 + length;
@@ -943,9 +948,10 @@ static int handshake_read_io(struct s2n_connection *conn)
         /* We're done with the record, wipe it */
         GUARD(s2n_stuffer_wipe(&conn->header_in));
         GUARD(s2n_stuffer_wipe(&conn->in));
+        PRINT0("IN_STATUS=ENCRYPYTED");
         conn->in_status = ENCRYPTED;
 
-        GUARD(s2n_advance_message(conn));
+        
 
         return 0;
     } 
@@ -958,13 +964,14 @@ static int handshake_read_io(struct s2n_connection *conn)
 
         GUARD(s2n_stuffer_copy(&conn->in, &conn->handshake.io, s2n_stuffer_data_available(&conn->in)));
        
-        printf("??? current: %s! \n", s2n_connection_get_last_message_name(conn));
+        printf("CCS: %s! \n", s2n_connection_get_last_message_name(conn));
         GUARD(CCS_STATE(conn).handler[conn->mode] (conn));
         GUARD(s2n_stuffer_wipe(&conn->handshake.io));
 
         /* We're done with the record, wipe it */
         GUARD(s2n_stuffer_wipe(&conn->header_in));
         GUARD(s2n_stuffer_wipe(&conn->in));
+        PRINT0("IN_STATUS=ENCRYPYTED");
         conn->in_status = ENCRYPTED;
 
         /* Advance the state machine if this was an expected message */
@@ -973,7 +980,7 @@ static int handshake_read_io(struct s2n_connection *conn)
             GUARD(s2n_advance_message(conn));
         }
     
-        return 0;
+        // return 0;
     } else if (record_type != TLS_HANDSHAKE) {
         if (record_type == TLS_ALERT) {
             GUARD(s2n_process_alert_fragment(conn));
@@ -984,6 +991,7 @@ static int handshake_read_io(struct s2n_connection *conn)
         /* We're done with the record, wipe it */
         GUARD(s2n_stuffer_wipe(&conn->header_in));
         GUARD(s2n_stuffer_wipe(&conn->in));
+        PRINT0("IN_STATUS=ENCRYPYTED");
         conn->in_status = ENCRYPTED;
         return 0;
     }
@@ -1001,6 +1009,7 @@ static int handshake_read_io(struct s2n_connection *conn)
              */
             GUARD(s2n_stuffer_wipe(&conn->header_in));
             GUARD(s2n_stuffer_wipe(&conn->in));
+            PRINT0("IN_STATUS=ENCRYPYTED");
             conn->in_status = ENCRYPTED;
             return 0;
         }
@@ -1050,6 +1059,7 @@ static int handshake_read_io(struct s2n_connection *conn)
     /* We're done with the record, wipe it */
     GUARD(s2n_stuffer_wipe(&conn->header_in));
     GUARD(s2n_stuffer_wipe(&conn->in));
+    PRINT0("IN_STATUS=ENCRYPYTED");
     conn->in_status = ENCRYPTED;
 
     return 0;
@@ -1072,6 +1082,8 @@ int s2n_negotiate(struct s2n_connection *conn, s2n_blocked_status * blocked)
     }
 
     while (ACTIVE_STATE(conn).writer != 'B') {
+        printf("s2n_negotiate: current: %s (%c) \n", s2n_connection_get_last_message_name(conn), ACTIVE_STATE(conn).writer);
+
         /* Flush any pending I/O or alert messages */
         GUARD(s2n_flush(conn, blocked));
 

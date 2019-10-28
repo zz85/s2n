@@ -120,8 +120,14 @@ int s2n_record_parse(struct s2n_connection *conn)
     uint16_t encrypted_length;
     GUARD(s2n_record_header_parse(conn, &content_type, &encrypted_length));
     PRINT0("s2n_record_header_parsed()\n");
+    printf("content_type: %d\n", content_type);
 
     printf("cipher_suite->record_alg->cipher->type %d\n", cipher_suite->record_alg->cipher->type);
+    // if (content_type == 20) return 0;
+
+    if (content_type == 20) {
+        return 0;
+    }
 
     switch (cipher_suite->record_alg->cipher->type) {
     case S2N_AEAD:
