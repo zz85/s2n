@@ -424,14 +424,16 @@ static const char* handshake_type_names[] = {
 #define IS_TLS13_HANDSHAKE( conn ) ((conn)->actual_protocol_version == S2N_TLS13)
 
 #define ACTIVE_STATE_MACHINE( conn )  (IS_TLS13_HANDSHAKE(conn) ? tls13_state_machine : state_machine)
-#define ACTIVE_HANDSHAKES( conn )      (IS_TLS13_HANDSHAKE(conn) ? tls13_handshakes : handshakes)
+#define ACTIVE_HANDSHAKES( conn )     (IS_TLS13_HANDSHAKE(conn) ? tls13_handshakes : handshakes)
 
 #define ACTIVE_MESSAGE( conn )        ACTIVE_HANDSHAKES(conn)[ (conn)->handshake.handshake_type ][ (conn)->handshake.message_number ]
 #define PREVIOUS_MESSAGE( conn )      ACTIVE_HANDSHAKES(conn)[ (conn)->handshake.handshake_type ][ (conn)->handshake.message_number - 1 ]
 
 #define ACTIVE_STATE( conn )          ACTIVE_STATE_MACHINE(conn)[ ACTIVE_MESSAGE( (conn) ) ]
 #define PREVIOUS_STATE( conn )        ACTIVE_STATE_MACHINE(conn)[ PREVIOUS_MESSAGE( (conn) ) ]
+#define CCS_STATE( conn )             (((conn)->mode == S2N_CLIENT) ? ACTIVE_STATE_MACHINE(conn)[SERVER_CHANGE_CIPHER_SPEC] : ACTIVE_STATE_MACHINE(conn)[CLIENT_CHANGE_CIPHER_SPEC])
 
+#define EXPECTED_RECORD_TYPE( conn )  ACTIVE_STATE( conn ).record_type
 #define EXPECTED_MESSAGE_TYPE( conn ) ACTIVE_STATE( conn ).message_type
 
 /* Used in our test cases */
@@ -462,7 +464,7 @@ static int s2n_advance_message(struct s2n_connection *conn)
 
     /* When reading and using TLS1.3, skip optional change_cipher_spec states. */
     if (ACTIVE_STATE(conn).writer != this &&
-            ACTIVE_STATE(conn).record_type == TLS_CHANGE_CIPHER_SPEC &&
+            EXPECTED_RECORD_TYPE(conn) == TLS_CHANGE_CIPHER_SPEC &&
             IS_TLS13_HANDSHAKE(conn)) {
                 PRINT0("Skip CCS\n");
         return s2n_advance_message(conn);
@@ -693,7 +695,7 @@ static int s2n_conn_update_handshake_hashes(struct s2n_connection *conn, struct 
  */
 static int handshake_write_io(struct s2n_connection *conn)
 {
-    uint8_t record_type = ACTIVE_STATE(conn).record_type;
+    uint8_t record_type = EXPECTED_RECORD_TYPE(conn);
     s2n_blocked_status blocked = S2N_NOT_BLOCKED;
 
     /* Populate handshake.io with header/payload for the current state, once.
@@ -949,13 +951,15 @@ static int handshake_read_io(struct s2n_connection *conn)
     } 
     else
     if (record_type == TLS_CHANGE_CIPHER_SPEC) {
+        /* TLS1.2 should not receive unexpected change cipher spec messages, but TLS1.3 might. */
+        S2N_ERROR_IF(!IS_TLS13_HANDSHAKE(conn) && EXPECTED_RECORD_TYPE(conn) != TLS_CHANGE_CIPHER_SPEC, S2N_ERR_BAD_MESSAGE);
+
         S2N_ERROR_IF(s2n_stuffer_data_available(&conn->in) != 1, S2N_ERR_BAD_MESSAGE);
 
         GUARD(s2n_stuffer_copy(&conn->in, &conn->handshake.io, s2n_stuffer_data_available(&conn->in)));
-        
+       
         printf("??? current: %s! \n", s2n_connection_get_last_message_name(conn));
-
-        GUARD(ACTIVE_STATE(conn).handler[conn->mode] (conn));
+        GUARD(CCS_STATE(conn).handler[conn->mode] (conn));
         GUARD(s2n_stuffer_wipe(&conn->handshake.io));
 
         /* We're done with the record, wipe it */
@@ -963,8 +967,8 @@ static int handshake_read_io(struct s2n_connection *conn)
         GUARD(s2n_stuffer_wipe(&conn->in));
         conn->in_status = ENCRYPTED;
 
-        /* Advance the state machine */
-        if (ACTIVE_STATE(conn).record_type == TLS_CHANGE_CIPHER_SPEC) {
+        /* Advance the state machine if this was an expected message */
+        if (EXPECTED_RECORD_TYPE(conn) == TLS_CHANGE_CIPHER_SPEC) {
             PRINT0("TLS_CHANGE_CIPHER_SPEC advanced\n");
             GUARD(s2n_advance_message(conn));
         }
