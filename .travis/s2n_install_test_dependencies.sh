@@ -39,7 +39,7 @@ echo "Running ShellCheck..."
 echo "Shell Check is success."
 
 if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-    .travis/install_ubuntu_dependencies.sh; | ts
+    .travis/install_ubuntu_dependencies.sh | ts; 
 fi
 
 if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then 
