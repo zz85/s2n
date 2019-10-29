@@ -64,7 +64,7 @@ if [[ "$TRAVIS_OS_NAME" == "linux" && "$TESTS" == "valgrind" ]]; then
 fi
 
 if [[ "$TRAVIS_OS_NAME" == "linux" && (("$TESTS" == "integration") || ("$TESTS" == "unit")) ]]; then
-    make -j $JOBS
+    make -j $JOBS | ts
 fi
 
 # Build and run unit tests with scan-build for osx. scan-build bundle isn't available for linux
@@ -73,7 +73,7 @@ if [[ "$TRAVIS_OS_NAME" == "osx" && "$TESTS" == "integration" ]]; then
 fi
 
 if [[ "$TESTS" == "ALL" || "$TESTS" == "asan" ]]; then make clean; S2N_ADDRESS_SANITIZER=1 make -j $JOBS ; fi
-if [[ "$TESTS" == "ALL" || "$TESTS" == "integration" ]]; then make clean; make integration ; fi
+if [[ "$TESTS" == "ALL" || "$TESTS" == "integration" ]]; then make clean; make integration | ts ; fi
 if [[ "$TESTS" == "ALL" || "$TESTS" == "fuzz" ]]; then (make clean && make fuzz) ; fi
 if [[ "$TESTS" == "ALL" || "$TESTS" == "sawHMAC" ]] && [[ "$TRAVIS_OS_NAME" == "linux" ]]; then make -C tests/saw/ tmp/"verify_s2n_hmac_$SAW_HMAC_TEST".log ; fi
 if [[ "$TESTS" == "ALL" || "$TESTS" == "sawDRBG" ]]; then make -C tests/saw tmp/verify_drbg.log ; fi
