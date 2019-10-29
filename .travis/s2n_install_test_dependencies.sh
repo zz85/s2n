@@ -28,21 +28,23 @@ if [[ ! -d test-deps ]]; then
     mkdir test-deps ; 
 fi
 
+sudo apt-get install -y moreutils
+
 #Install & Run shell check before installing dependencies
 echo "Installing ShellCheck..."
-.travis/install_shellcheck.sh "$TRAVIS_OS_NAME"
+.travis/install_shellcheck.sh "$TRAVIS_OS_NAME" | ts
 echo "Running ShellCheck..."
-.travis/run_shellcheck.sh
+.travis/run_shellcheck.sh  | ts
 echo "Shell Check is success."
 
 if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-    .travis/install_ubuntu_dependencies.sh;
+    .travis/install_ubuntu_dependencies.sh; | ts
 fi
 
 if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then 
     .travis/install_osx_dependencies.sh;
 fi
 
-.travis/install_default_dependencies.sh
+.travis/install_default_dependencies.sh | ts
 
 echo "Success"
