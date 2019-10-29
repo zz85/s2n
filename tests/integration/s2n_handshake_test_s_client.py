@@ -380,7 +380,7 @@ def print_result(result_prefix, return_code):
     print(result_prefix + suffix)
 
 def create_thread_pool():
-    threadpool_size = multiprocessing.cpu_count() * 4  # Multiply by 4 to increase parallelization between integration tests
+    threadpool_size = multiprocessing.cpu_count()  # Multiply by 4 to increase parallelization between integration tests
     print("\tCreating ThreadPool of size: " + str(threadpool_size))
     threadpool = ThreadPool(processes=threadpool_size)
     return threadpool

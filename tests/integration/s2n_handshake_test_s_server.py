@@ -171,7 +171,7 @@ def print_result(result_prefix, return_code):
 
 
 def create_thread_pool():
-    threadpool_size = multiprocessing.cpu_count() * 2  #Multiply by 2 since performance improves slightly if CPU has hyperthreading
+    threadpool_size = multiprocessing.cpu_count()   #Multiply by 2 since performance improves slightly if CPU has hyperthreading
     print("\tCreating ThreadPool of size: " + str(threadpool_size))
     threadpool = ThreadPool(processes=threadpool_size)
     return threadpool
