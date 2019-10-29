@@ -28,6 +28,7 @@ if [[ ! -d test-deps ]]; then
     mkdir test-deps ; 
 fi
 
+sudo apt-get -qq update
 sudo apt-get install -y moreutils
 
 #Install & Run shell check before installing dependencies
