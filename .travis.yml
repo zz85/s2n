@@ -11,10 +11,12 @@ jobs:
   include:
 # Code Coverage Targets, will upload code coverage metrics during Pull Requests
   - os: linux
+    arch: arm64
     dist: bionic
     env: S2N_LIBCRYPTO=openssl-1.1.1 BUILD_S2N=true TESTS=unit GCC_VERSION=6 S2N_COVERAGE=true CODECOV_IO_UPLOAD=true
 
   - os: linux
+    arch: arm64
     dist: bionic
     env: S2N_LIBCRYPTO=openssl-1.1.1 BUILD_S2N=true TESTS=integration GCC_VERSION=6 S2N_COVERAGE=true CODECOV_IO_UPLOAD=true
 
@@ -25,30 +27,37 @@ jobs:
 
 # Normal Build Targets
   - os: linux
+    arch: arm64
     dist: bionic
     env: S2N_LIBCRYPTO=openssl-1.1.1 BUILD_S2N=true TESTS=integration GCC_VERSION=6
 
   - os: linux
+    arch: arm64
     dist: bionic
     env: S2N_LIBCRYPTO=openssl-1.1.1 BUILD_S2N=true TESTS=integration GCC_VERSION=9
 
   - os: linux
+    arch: arm64
     dist: bionic
     env: S2N_LIBCRYPTO=openssl-1.1.1 BUILD_S2N=true TESTS=integration GCC_VERSION=6 S2N_CORKED_IO=true
 
   - os: linux
+    arch: arm64
     dist: bionic
     env: S2N_LIBCRYPTO=openssl-1.0.2 BUILD_S2N=true TESTS=integration GCC_VERSION=6
 
   - os: linux
+    arch: arm64
     dist: bionic
     env: S2N_LIBCRYPTO=openssl-1.0.2-fips BUILD_S2N=true TESTS=integration GCC_VERSION=6
 
   - os: linux
+    arch: arm64
     dist: bionic
     env: S2N_LIBCRYPTO=libressl      BUILD_S2N=true TESTS=integration GCC_VERSION=6
 
   - os: linux
+    arch: arm64
     dist: bionic
     # Force libcrypto to use "software only" crypto implementations for AES and AES-GCM. Verify s2n can gracefully use
     # unoptimized routines. See https://www.openssl.org/docs/man1.1.0/crypto/OPENSSL_ia32cap.html
@@ -56,19 +65,23 @@ jobs:
 
 # Fuzz Tests
   - os: linux
+    arch: arm64
     dist: bionic
     env: S2N_LIBCRYPTO=openssl-1.1.1 LATEST_CLANG=true TESTS=fuzz FUZZ_TIMEOUT_SEC=120
 
   - os: linux
+    arch: arm64
     dist: bionic
     env: S2N_LIBCRYPTO=openssl-1.0.2-fips LATEST_CLANG=true TESTS=fuzz FUZZ_TIMEOUT_SEC=120
-  
+
 # ASAN and Valgrind Tests
   - os: linux
+    arch: arm64
     dist: bionic
     env: S2N_LIBCRYPTO=openssl-1.0.2 BUILD_S2N=true TESTS=asan GCC_VERSION=6
 
   - os: linux
+    arch: arm64
     dist: bionic
     env: S2N_LIBCRYPTO=openssl-1.0.2 BUILD_S2N=true TESTS=valgrind GCC_VERSION=6
 
