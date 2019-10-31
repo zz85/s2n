@@ -754,6 +754,8 @@ static int handshake_write_io(struct s2n_connection *conn)
             } else {
                 PRINT0("Yup");
                 if (ACTIVE_MESSAGE(conn) == CLIENT_FINISHED) {
+                    s2n_handle_tls13_secrets_update_application(conn);
+
                     PRINT0("CLIENT_FINISHED");
                     out.size -= 1;
                 }
@@ -763,9 +765,6 @@ static int handshake_write_io(struct s2n_connection *conn)
 
                 PRINT0("Payload for hash updates");
                 print_hex_blob(out);
-
-                
-
                 GUARD(s2n_conn_update_handshake_hashes(conn, &out));
 
                 printf("%s", KNRM);
@@ -774,8 +773,13 @@ static int handshake_write_io(struct s2n_connection *conn)
                 if (ACTIVE_MESSAGE(conn) == CLIENT_FINISHED) {
                     printf("%s", KRED);
                     printf("---- hs over ---\n");
+                    // Derivate resumption master!!!
 
-                    s2n_handle_tls13_secrets_update_application(conn);
+                    struct s2n_blob seq = {.data = conn->secure.client_sequence_number,.size = sizeof(conn->secure.client_sequence_number) };
+                    GUARD(s2n_blob_zero(&seq));
+
+                    struct s2n_blob server_seq = {.data = conn->secure.server_sequence_number,.size = sizeof(conn->secure.server_sequence_number) };
+                    GUARD(s2n_blob_zero(&server_seq));
                 }
             }
         }
@@ -785,7 +789,7 @@ static int handshake_write_io(struct s2n_connection *conn)
 
         if (conn->actual_protocol_version == S2N_TLS13 && EXPECTED_MESSAGE_TYPE(conn) == TLS_FINISHED) {
             printf("\n\n\n\n\n");
-            sleep(5);
+            sleep(1);
             return 0;
         }
 

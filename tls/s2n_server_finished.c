@@ -48,7 +48,7 @@ int s2n_tls13_server_finished_recv(struct s2n_connection *conn) {
 
     GUARD(server_finish_verify(conn, &keys, &wire_server_finished_verify));
     PRINT0("Verify Ok\n");
-    sleep(3);
+    sleep(2);
 
     return 0;
 }

@@ -133,12 +133,12 @@ int s2n_read_full_record(struct s2n_connection *conn, uint8_t * record_type, int
         return -1;
     }
 
-    PRINT0("s2n_record_parsed() \n");
-    debug_stuffer(&conn->in);
-    for (int i = 0; i < 14; i++) {
-        printf("%02x ", conn->in.blob.data[i]);
-    }
-    printf(" <--- \n");
+    // PRINT0("s2n_record_parsed() \n");
+    // debug_stuffer(&conn->in);
+    // for (int i = 0; i < 14; i++) {
+    //     printf("%02x ", conn->in.blob.data[i]);
+    // }
+    // printf(" <--- \n");
 
 
     return 0;
