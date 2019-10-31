@@ -80,8 +80,17 @@ int s2n_tls13_derive_finish_key(struct s2n_tls13_keys *keys, struct s2n_blob *se
 int s2n_tls13_calculate_finish_verify(struct s2n_tls13_keys *keys, struct s2n_blob *finished_key, struct s2n_hash_state *hash_state, struct s2n_blob *finished_verify);
 
 
-extern int s2n_handle_tls13_secrets_update(struct s2n_connection *conn);
 
 int server_finish_verify(struct s2n_connection *conn, struct s2n_tls13_keys *keys, struct s2n_blob *verify);
 int client_finish_verify(struct s2n_connection *conn, struct s2n_tls13_keys *keys, struct s2n_blob *verify);
+
+int s2n_tls13_keys_init_from_conn(struct s2n_tls13_keys *keys, struct s2n_connection *conn);
+#define S2N_TLS13_KEYS(keys, conn) \
+    struct s2n_tls13_keys keys = {0};\
+    GUARD(s2n_tls13_keys_init_from_conn(&keys, conn));
+
+extern int s2n_handle_tls13_secrets_update(struct s2n_connection *conn);
+extern int s2n_handle_tls13_secrets_update_application(struct s2n_connection *conn);
+
+
 

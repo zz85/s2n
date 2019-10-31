@@ -754,7 +754,19 @@ static int handshake_write_io(struct s2n_connection *conn)
                 PRINT0("CLIENT_CHANGE_CIPHER_SPEC");
             } else {
                 PRINT0("Yup");
+                if (ACTIVE_MESSAGE(conn) == CLIENT_FINISHED) {
+                    out.size -= 1;
+                }
+
                 GUARD(s2n_conn_update_handshake_hashes(conn, &out));
+
+
+                if (ACTIVE_MESSAGE(conn) == CLIENT_FINISHED) {
+                    printf("%s", KRED);
+                    printf("---- hs over ---\n");
+
+                    s2n_handle_tls13_secrets_update_application(conn);
+                }
             }
         }
 

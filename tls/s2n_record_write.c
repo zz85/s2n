@@ -199,7 +199,7 @@ int s2n_record_writev(struct s2n_connection *conn, uint8_t content_type, const s
 
     printf("Record Alg Type: %d\n", cipher_suite->record_alg->cipher->type);
     printf("is_tls13_record: %d\n", is_tls13_record);
-    STACKTRACE;
+    // STACKTRACE;
     
     S2N_ERROR_IF(s2n_stuffer_data_available(&conn->out), S2N_ERR_BAD_MESSAGE);
 
@@ -209,11 +209,6 @@ int s2n_record_writev(struct s2n_connection *conn, uint8_t content_type, const s
     /* Before we do anything, we need to figure out what the length of the
      * fragment is going to be.
      */
-    printf("to_write %zu\n", to_write);
-    // if (is_tls13_record) {
-    //     to_write += 1;
-    // }
-
     uint16_t data_bytes_to_take = MIN(to_write, s2n_record_max_write_payload_size(conn));
 
     uint16_t extra = overhead(conn);
@@ -243,11 +238,9 @@ int s2n_record_writev(struct s2n_connection *conn, uint8_t content_type, const s
     
     GUARD(s2n_record_write_protocol_version(conn)); // 33
 
-    uint16_t plen = 99;
     // is_tls13_record ? data_bytes_to_take + 1 : data_bytes_to_take;
     /* First write a header that has the payload length, this is for the MAC */
-    printf("data_bytes_to_take %d -- %d \n", data_bytes_to_take, plen);
-    GUARD(s2n_stuffer_write_uint16(&conn->out, plen));
+    GUARD(s2n_stuffer_write_uint16(&conn->out, data_bytes_to_take));
 
     if (conn->actual_protocol_version > S2N_SSLv3) {
         GUARD(s2n_hmac_update(mac, conn->out.blob.data, S2N_TLS_RECORD_HEADER_LENGTH));
@@ -327,7 +320,6 @@ int s2n_record_writev(struct s2n_connection *conn, uint8_t content_type, const s
 
     /* We are done with this sequence number, so we can increment it */
     struct s2n_blob seq = {.data = sequence_number, .size = S2N_TLS_SEQUENCE_NUM_LEN };
-    PRINT0("SEQ");
     print_hex_blob(seq);
 
     GUARD(s2n_increment_sequence_number(&seq));

@@ -36,8 +36,8 @@ int s2n_tls13_server_finished_recv(struct s2n_connection *conn) {
 
     we then run HMAC with the server finish as a key with the transcribe hash, then verify 
     the results */
-    struct s2n_tls13_keys keys = {0};
-    s2n_tls13_keys_init(&keys, conn->secure.cipher_suite->tls12_prf_alg);
+
+    S2N_TLS13_KEYS(keys, conn);
 
     uint8_t length = s2n_stuffer_data_available(&conn->handshake.io);
     struct s2n_blob wire_server_finished_verify = {

@@ -41,8 +41,7 @@ int s2n_client_finished_send(struct s2n_connection *conn)
 {
     if (conn->actual_protocol_version == S2N_TLS13) {
         STACKTRACE;
-        struct s2n_tls13_keys keys = { 0 };
-        s2n_tls13_keys_init(&keys, conn->secure.cipher_suite->tls12_prf_alg);
+        S2N_TLS13_KEYS(keys, conn);
 
         struct s2n_hash_state hash_state = {0};
         GUARD(s2n_handshake_get_hash_state(conn, keys.hash_algorithm, &hash_state));
@@ -69,6 +68,7 @@ int s2n_client_finished_send(struct s2n_connection *conn)
         /* Patch mode */
         struct s2n_blob seq = {.data = conn->secure.client_sequence_number,.size = sizeof(conn->secure.client_sequence_number) };
         GUARD(s2n_blob_zero(&seq));
+
         /* Update the client to use the cipher-suite */
         conn->client = &conn->secure;
 
