@@ -635,8 +635,10 @@ const char *s2n_connection_get_handshake_type_name(struct s2n_connection *conn)
 
 static int s2n_conn_update_handshake_hashes(struct s2n_connection *conn, struct s2n_blob *data)
 {
-    PRINT0("s2n_conn_update_handshake_hashes");
+    printf("%s%s\n", KGRN, s2n_connection_get_last_message_name(conn));
+    PRINT0("s2n_conn_update_handshake_hashes()");
     STACKTRACE;
+    printf("%s", KNRM);
     if (s2n_handshake_is_hash_required(&conn->handshake, S2N_HASH_MD5)) {
         /* The handshake MD5 hash state will fail the s2n_hash_is_available() check
          * since MD5 is not permitted in FIPS mode. This check will not be used as
@@ -741,10 +743,7 @@ static int handshake_write_io(struct s2n_connection *conn)
         printf("max_payload_size max: %d - min: %d\n", max_payload_size, out.size);
         out.data = s2n_stuffer_raw_read(&conn->handshake.io, out.size);
 
-        print_hex_blob(out);
-        notnull_check(out.data);
-
-        /* Make the actual record */
+         /* Make the actual record */
         GUARD(s2n_record_write(conn, record_type, &out));
 
         /* MD5 and SHA sum the handshake data too */
@@ -755,10 +754,21 @@ static int handshake_write_io(struct s2n_connection *conn)
             } else {
                 PRINT0("Yup");
                 if (ACTIVE_MESSAGE(conn) == CLIENT_FINISHED) {
+                    PRINT0("CLIENT_FINISHED");
                     out.size -= 1;
                 }
 
+                printf("%s", KGRN);
+                printf("State: %s\n", s2n_connection_get_last_message_name(conn));
+
+                PRINT0("Payload for hash updates");
+                print_hex_blob(out);
+
+                
+
                 GUARD(s2n_conn_update_handshake_hashes(conn, &out));
+
+                printf("%s", KNRM);
 
 
                 if (ACTIVE_MESSAGE(conn) == CLIENT_FINISHED) {
@@ -837,8 +847,7 @@ static int read_full_handshake_message(struct s2n_connection *conn, uint8_t * me
 
 static int s2n_handshake_conn_update_hashes(struct s2n_connection *conn)
 {
-    STACKTRACE;
-    PRINT0("^^^^^^^^^^^^ HAND ^^^^");
+    
 
     uint8_t message_type;
     uint32_t handshake_message_length;
@@ -851,6 +860,7 @@ static int s2n_handshake_conn_update_hashes(struct s2n_connection *conn)
     handshake_record.size = TLS_HANDSHAKE_HEADER_LENGTH + handshake_message_length;
     notnull_check(handshake_record.data);
 
+    printf("%s%s\n", KGRN, s2n_connection_get_last_message_name(conn));
     /* MD5 and SHA sum the handshake data too */
     GUARD(s2n_conn_update_handshake_hashes(conn, &handshake_record));
 
@@ -992,12 +1002,13 @@ static int handshake_read_io(struct s2n_connection *conn)
             /* update handshake hashes */
             
             // if (handshake_record.data[0] != 20 || handshake_record.data[0] != 20) {
-                printf("updating hashs: ok -- ");
+                printf("%s", KGRN);
+                printf("updating encryped payload hashs: ok -- ");
                 GUARD(s2n_conn_update_handshake_hashes(conn, &handshake_record));
             // } else {
             //     printf("updating hashs: noo -- ");
             // }
-                
+            printf("%s", KNRM);
 
             // if (server_finish) {
                 // calculate client_finish.

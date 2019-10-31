@@ -184,11 +184,22 @@ int s2n_handle_tls13_secrets_update(struct s2n_connection *conn) {
     struct s2n_blob client_finished_key = { .data = conn->handshake.client_finished, .size = secrets.size };
     s2n_tls13_derive_finish_key(&secrets, &client_hs_secret, &client_finished_key);
 
+    PRINT0("AAAAAA Extract");
+    print_hex_blob(secrets.extract_secret);
+    PRINT0("AAAAAA Derive");
+    print_hex_blob(secrets.derive_secret);
+    
+
     return 0;
 }
 
 int s2n_handle_tls13_secrets_update_application(struct s2n_connection *conn) {
     S2N_TLS13_KEYS(keys, conn);
+    PRINT0("BBBBBBB Extract");
+    print_hex_blob(keys.extract_secret);
+    PRINT0("BBBBBBB Derive");
+    print_hex_blob(keys.derive_secret);
+
 
     s2n_stack_blob(client_app_secret, keys.size, S2N_TLS13_SECRET_MAX_LEN);
     s2n_stack_blob(server_app_secret, keys.size, S2N_TLS13_SECRET_MAX_LEN);
@@ -233,6 +244,9 @@ int s2n_handle_tls13_secrets_update_application(struct s2n_connection *conn) {
     GUARD(conn->secure.cipher_suite->record_alg->cipher->set_decryption_key(&conn->secure.server_key, &s_app_key));
     GUARD(conn->secure.cipher_suite->record_alg->cipher->set_encryption_key(&conn->secure.client_key, &c_app_key));
     printf("%s", KNRM);
+
+
+
 
 
     return 0;

@@ -13,6 +13,7 @@
  * permissions and limitations under the License.
  */
 
+#include <unistd.h>
 #include <stdint.h>
 
 #include "error/s2n_errno.h"
@@ -47,6 +48,7 @@ int s2n_tls13_server_finished_recv(struct s2n_connection *conn) {
 
     GUARD(server_finish_verify(conn, &keys, &wire_server_finished_verify));
     PRINT0("Verify Ok\n");
+    sleep(3);
 
     return 0;
 }

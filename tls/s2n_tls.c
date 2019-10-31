@@ -69,7 +69,9 @@ void print_hex2(uint8_t *s, size_t len) {
 }
 
 void print_hex_blob(struct s2n_blob blob) {
+    printf("Stuffer size: %d\n", blob.size);
     print_hex(blob.data, blob.size);
+    printf("\n");
 }
 
 void debug_stuffer(struct s2n_stuffer *stuffer) {

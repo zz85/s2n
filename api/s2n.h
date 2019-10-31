@@ -290,7 +290,7 @@ extern const char *s2n_connection_get_last_message_name(struct s2n_connection *c
 } while (0)
 
 #define PRINT0(msg) do { \
-    printf("[%s: %d] "msg" \n", \
+    printf("[%s:%d] "msg" \n", \
             __FILE__, __LINE__); \
 } while (0)
 
