@@ -734,10 +734,10 @@ static int handshake_write_io(struct s2n_connection *conn)
         int max_payload_size;
         GUARD((max_payload_size = s2n_record_max_write_payload_size(conn)));
 
-        if (conn->actual_protocol_version == S2N_TLS13 && EXPECTED_MESSAGE_TYPE(conn) == TLS_FINISHED) {
-            PRINT0("CLIENT_FINISHED");
-            s2n_stuffer_write_uint8(&conn->handshake.io, record_type);
-        }
+        // if (conn->actual_protocol_version == S2N_TLS13 && EXPECTED_MESSAGE_TYPE(conn) == TLS_FINISHED) {
+        //     PRINT0("CLIENT_FINISHED");
+        //     s2n_stuffer_write_uint8(&conn->handshake.io, record_type);
+        // }
 
         out.size = MIN(s2n_stuffer_data_available(&conn->handshake.io), max_payload_size);
         printf("max_payload_size max: %d - min: %d\n", max_payload_size, out.size);
@@ -757,7 +757,7 @@ static int handshake_write_io(struct s2n_connection *conn)
                     s2n_handle_tls13_secrets_update_application(conn);
 
                     PRINT0("CLIENT_FINISHED");
-                    out.size -= 1;
+                    // out.size -= 1;
                 }
 
                 printf("%s", KGRN);

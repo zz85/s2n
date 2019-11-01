@@ -18,7 +18,6 @@
 
 #include "error/s2n_errno.h"
 
-#include "tls/s2n_tls.h"
 #include "tls/s2n_cipher_suites.h"
 #include "tls/s2n_connection.h"
 #include "tls/s2n_record.h"
@@ -33,6 +32,8 @@
 #include "utils/s2n_safety.h"
 #include "utils/s2n_random.h"
 #include "utils/s2n_blob.h"
+
+#include "tls/s2n_tls.h"
 
 extern uint8_t s2n_unknown_protocol_version;
 
@@ -136,8 +137,6 @@ static inline int s2n_record_encrypt(
 {
     notnull_check(en->data);
 
-    printf("s2n_record_encrypt() :%d\n", cipher_suite->record_alg->cipher->type);
-
     switch (cipher_suite->record_alg->cipher->type) {
     case S2N_STREAM:
         GUARD(cipher_suite->record_alg->cipher->io.stream.encrypt(session_key, en, en));
@@ -184,23 +183,16 @@ int s2n_record_writev(struct s2n_connection *conn, uint8_t content_type, const s
     uint8_t *implicit_iv = conn->server->server_implicit_iv;
 
     if (conn->mode == S2N_CLIENT) {
-        PRINT0("S2N_CLIENT");
         sequence_number = conn->client->client_sequence_number;
         mac = &conn->client->client_record_mac;
         session_key = &conn->client->client_key;
         cipher_suite = conn->client->cipher_suite;
         implicit_iv = conn->client->client_implicit_iv;
-    } else {
-        PRINT0("S2N_SERVER");
     }
 
     const int is_tls13_record = cipher_suite->record_alg->flags & S2N_TLS13_RECORD_AEAD_NONCE;
     s2n_stack_blob(aad, is_tls13_record ? S2N_TLS13_AAD_LEN : S2N_TLS_MAX_AAD_LEN, S2N_TLS_MAX_AAD_LEN);
 
-    printf("Record Alg Type: %d\n", cipher_suite->record_alg->cipher->type);
-    printf("is_tls13_record: %d\n", is_tls13_record);
-    // STACKTRACE;
-    
     S2N_ERROR_IF(s2n_stuffer_data_available(&conn->out), S2N_ERR_BAD_MESSAGE);
 
     uint8_t mac_digest_size;
@@ -236,10 +228,10 @@ int s2n_record_writev(struct s2n_connection *conn, uint8_t content_type, const s
     } else {
         GUARD(s2n_stuffer_write_uint8(&conn->out, content_type));
     }
-    
-    GUARD(s2n_record_write_protocol_version(conn)); // 33
+    GUARD(s2n_record_write_protocol_version(conn));
 
-    // is_tls13_record ? data_bytes_to_take + 1 : data_bytes_to_take;
+    sleep(0.5);
+
     /* First write a header that has the payload length, this is for the MAC */
     GUARD(s2n_stuffer_write_uint16(&conn->out, data_bytes_to_take));
 
@@ -270,10 +262,8 @@ int s2n_record_writev(struct s2n_connection *conn, uint8_t content_type, const s
 
     /* Rewrite the length to be the actual fragment length */
     uint16_t actual_fragment_length = data_bytes_to_take + padding + extra;
-    // if (is_tls13_record) actual_fragment_length += 1;
-    printf("actual_fragment_length: %d", actual_fragment_length);
     GUARD(s2n_stuffer_wipe_n(&conn->out, 2));
-    GUARD(s2n_stuffer_write_uint16(&conn->out, actual_fragment_length));
+    GUARD(s2n_stuffer_write_uint16(&conn->out, is_tls13_record ? actual_fragment_length + 1 : actual_fragment_length));
 
     /* If we're AEAD, write the sequence number as an IV, and generate the AAD */
     if (cipher_suite->record_alg->cipher->type == S2N_AEAD) {
@@ -304,8 +294,7 @@ int s2n_record_writev(struct s2n_connection *conn, uint8_t content_type, const s
         struct s2n_stuffer ad_stuffer = {0};
         GUARD(s2n_stuffer_init(&ad_stuffer, &aad));
         if (is_tls13_record) {
-            // + sizeof(content_type)
-            GUARD(s2n_tls13_aead_aad_init(data_bytes_to_take , cipher_suite->record_alg->cipher->io.aead.tag_size, &ad_stuffer));
+            GUARD(s2n_tls13_aead_aad_init(data_bytes_to_take + sizeof(content_type), cipher_suite->record_alg->cipher->io.aead.tag_size, &ad_stuffer));
         } else {
             GUARD(s2n_aead_aad_init(conn, sequence_number, content_type, data_bytes_to_take, &ad_stuffer));
         }
@@ -320,15 +309,11 @@ int s2n_record_writev(struct s2n_connection *conn, uint8_t content_type, const s
     }
 
     /* We are done with this sequence number, so we can increment it */
-    struct s2n_blob seq = {.data = sequence_number, .size = S2N_TLS_SEQUENCE_NUM_LEN };
-    print_hex_blob(seq);
-
+    struct s2n_blob seq = {.data = sequence_number,.size = S2N_TLS_SEQUENCE_NUM_LEN };
     GUARD(s2n_increment_sequence_number(&seq));
 
     /* Write the plaintext data */
     GUARD(s2n_stuffer_writev_bytes(&conn->out, in, in_count, offs, data_bytes_to_take));
-
-   
     void *orig_write_ptr = conn->out.blob.data + conn->out.write_cursor - data_bytes_to_take;
     GUARD(s2n_hmac_update(mac, orig_write_ptr, data_bytes_to_take));
 
@@ -339,10 +324,10 @@ int s2n_record_writev(struct s2n_connection *conn, uint8_t content_type, const s
     GUARD(s2n_hmac_digest(mac, digest, mac_digest_size));
     GUARD(s2n_hmac_reset(mac));
 
-    // /* Write content type for TLS 1.3 record (RFC 8446 Section 5.2) */
-    // if (is_tls13_record) {
-    //     GUARD(s2n_stuffer_write_uint8(&conn->out, content_type));
-    // }
+    /* Write content type for TLS 1.3 record (RFC 8446 Section 5.2) */
+    if (is_tls13_record) {
+        GUARD(s2n_stuffer_write_uint8(&conn->out, content_type));
+    }
 
     if (cipher_suite->record_alg->cipher->type == S2N_CBC) {
         /* Include padding bytes, each with the value 'p', and
@@ -352,11 +337,6 @@ int s2n_record_writev(struct s2n_connection *conn, uint8_t content_type, const s
             GUARD(s2n_stuffer_write_uint8(&conn->out, padding));
         }
     }
-
-    PRINT0("RECORD WRITE PLAIN TEXT");
-    print_hex(conn->out.blob.data, conn->out.write_cursor);
-    // print_hex_blob(conn->out.blob);
-    // debug_stuffer(&conn->out);
 
     /* Rewind to rewrite/encrypt the packet */
     GUARD(s2n_stuffer_rewrite(&conn->out));
@@ -371,7 +351,7 @@ int s2n_record_writev(struct s2n_connection *conn, uint8_t content_type, const s
         encrypted_length += cipher_suite->record_alg->cipher->io.aead.tag_size;
         if (is_tls13_record) {
             /* one extra byte for content type */
-            // encrypted_length += sizeof(content_type);
+            encrypted_length += sizeof(content_type);
         }
         break;
     case S2N_CBC:
@@ -391,7 +371,6 @@ int s2n_record_writev(struct s2n_connection *conn, uint8_t content_type, const s
     default:
         break;
     }
-    printf("encrypted_length: %d\n", encrypted_length);
 
     /* Do the encryption */
     struct s2n_blob en = { .size = encrypted_length, .data = s2n_stuffer_raw_write(&conn->out, encrypted_length) };

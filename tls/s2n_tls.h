@@ -15,6 +15,7 @@
 
 #pragma once
 
+#include <unistd.h>
 #include <stdint.h>
 
 #include "tls/s2n_connection.h"
