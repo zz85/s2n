@@ -95,7 +95,7 @@ int s2n_record_header_parse(
 
 int s2n_record_parse(struct s2n_connection *conn)
 {
-    PRINT0("s2n_record_parse()\n");
+    // PRINT0("s2n_record_parse()\n");
     const struct s2n_cipher_suite *cipher_suite = conn->client->cipher_suite;
     uint8_t *implicit_iv = conn->client->client_implicit_iv;
     struct s2n_hmac_state *mac = &conn->client->client_record_mac;
@@ -109,20 +109,20 @@ int s2n_record_parse(struct s2n_connection *conn)
         sequence_number = conn->server->server_sequence_number;
         session_key = &conn->server->server_key;
 
-        PRINT0("Conn mode = Client\n");
+        // PRINT0("Conn mode = Client\n");
     } else {
-        PRINT0("Conn mode = Server\n");
+        // PRINT0("Conn mode = Server\n");
     }
 
-    printf("cipher_suite: %s\n", cipher_suite->name);
+    // printf("cipher_suite: %s\n", cipher_suite->name);
 
     uint8_t content_type;
     uint16_t encrypted_length;
     GUARD(s2n_record_header_parse(conn, &content_type, &encrypted_length));
-    PRINT0("s2n_record_header_parsed()\n");
-    printf("content_type: %d\n", content_type);
+    // PRINT0("s2n_record_header_parsed()\n");
+    // printf("content_type: %d\n", content_type);
 
-    printf("cipher_suite->record_alg->cipher->type %d\n", cipher_suite->record_alg->cipher->type);
+    // printf("cipher_suite->record_alg->cipher->type %d\n", cipher_suite->record_alg->cipher->type);
     // if (content_type == 20) return 0;
 
     if (content_type == 20) {

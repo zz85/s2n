@@ -64,7 +64,7 @@ static int s2n_aead_cipher_aes_gcm_encrypt(struct s2n_session_key *key, struct s
 
 static int s2n_aead_cipher_aes_gcm_decrypt(struct s2n_session_key *key, struct s2n_blob *iv, struct s2n_blob *aad, struct s2n_blob *in, struct s2n_blob *out)
 {
-    PRINT0("s2n_aead_cipher_aes_gcm_decrypt\n");
+    // PRINT0("s2n_aead_cipher_aes_gcm_decrypt\n");
     gte_check(in->size, S2N_TLS_GCM_TAG_LEN);
     gte_check(out->size, in->size);
     eq_check(iv->size, S2N_TLS_GCM_IV_LEN);

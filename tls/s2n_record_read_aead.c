@@ -42,7 +42,7 @@ int s2n_record_parse_aead(
     struct s2n_session_key *session_key)
 {
     const int is_tls13_record = cipher_suite->record_alg->flags & S2N_TLS13_RECORD_AEAD_NONCE;
-    PRINT0("s2n_record_parse_aead()");
+    // PRINT0("s2n_record_parse_aead()");
     // printf("is_tls13_record: %d\n", is_tls13_record);
     
     /* TLS 1.3 record protection uses a different 5 byte associated data than TLS 1.2's */

@@ -119,7 +119,7 @@ int s2n_read_full_record(struct s2n_connection *conn, uint8_t * record_type, int
         conn->wire_bytes_in += r;
     }
 
-    PRINT0("Conn in\n");
+    // PRINT0("Conn in\n");
     debug_stuffer(&conn->in);
 
     if (*isSSLv2) {
@@ -210,7 +210,7 @@ ssize_t s2n_recv(struct s2n_connection * conn, void *buf, ssize_t size, s2n_bloc
         if (s2n_stuffer_data_available(&conn->in) == 0) {
             GUARD(s2n_stuffer_wipe(&conn->header_in));
             GUARD(s2n_stuffer_wipe(&conn->in));
-            PRINT0("IN_STATUS=ENCRYPYTED");
+            // PRINT0("IN_STATUS=ENCRYPYTED");
             conn->in_status = ENCRYPTED;
         }
 

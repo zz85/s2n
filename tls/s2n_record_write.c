@@ -222,8 +222,8 @@ int s2n_record_writev(struct s2n_connection *conn, uint8_t content_type, const s
 
     /* Now that we know the length, start writing the record */
     if (is_tls13_record) {
-        STACKTRACE;
-        PRINT0("writing TLS_APPLICATION_DATA...");
+        // STACKTRACE;
+        // PRINT0("writing TLS_APPLICATION_DATA...");
         GUARD(s2n_stuffer_write_uint8(&conn->out, TLS_APPLICATION_DATA));
     } else {
         GUARD(s2n_stuffer_write_uint8(&conn->out, content_type));
