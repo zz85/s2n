@@ -92,5 +92,14 @@ int s2n_tls13_keys_init_from_conn(struct s2n_tls13_keys *keys, struct s2n_connec
 extern int s2n_handle_tls13_secrets_update(struct s2n_connection *conn);
 extern int s2n_handle_tls13_secrets_update_application(struct s2n_connection *conn);
 
+/*
+
+After Server Hello
+
+After Server Finish
+- after Client, resumption, reset requence number
+
+*/
+
 
 

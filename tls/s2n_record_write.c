@@ -230,7 +230,7 @@ int s2n_record_writev(struct s2n_connection *conn, uint8_t content_type, const s
     }
     GUARD(s2n_record_write_protocol_version(conn));
 
-    sleep(0.5);
+    sleep(1);
 
     /* First write a header that has the payload length, this is for the MAC */
     GUARD(s2n_stuffer_write_uint16(&conn->out, data_bytes_to_take));
