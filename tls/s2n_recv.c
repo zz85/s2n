@@ -43,14 +43,14 @@ int s2n_read_full_record(struct s2n_connection *conn, uint8_t * record_type, int
 
     *isSSLv2 = 0;
 
-    PRINT0("s2n_read_full_record");
+    // PRINT0("s2n_read_full_record");
     // STACKTRACE;
 
     /* If the record has already been decrypted, then leave it alone */
     if (conn->in_status == PLAINTEXT) {
         /* Only application data packets count as plaintext */
         *record_type = TLS_APPLICATION_DATA;
-        PRINT0("s2n_read_full_record() PLAINTEXT\n");
+        // PRINT0("s2n_read_full_record() PLAINTEXT\n");
         return 0;
     }
 
@@ -94,8 +94,8 @@ int s2n_read_full_record(struct s2n_connection *conn, uint8_t * record_type, int
         }
     }
 
-    PRINT0("Header In Blob\n");
-    print_hex_blob(conn->header_in.blob);
+    // PRINT0("Header In Blob\n");
+    // print_hex_blob(conn->header_in.blob);
 
     /* Read enough to have the whole record */
     while (s2n_stuffer_data_available(&conn->in) < fragment_length) {

@@ -466,8 +466,8 @@ static int s2n_advance_message(struct s2n_connection *conn)
     if (ACTIVE_STATE(conn).writer != this &&
             EXPECTED_RECORD_TYPE(conn) == TLS_CHANGE_CIPHER_SPEC &&
             IS_TLS13_HANDSHAKE(conn)) {
-                PRINT0("Skip CCS\n");
-                STACKTRACE;
+                // PRINT0("Skip CCS\n");
+                // STACKTRACE;
         return s2n_advance_message(conn);
     }
 
@@ -637,7 +637,7 @@ static int s2n_conn_update_handshake_hashes(struct s2n_connection *conn, struct 
 {
     printf("%s%s\n", KGRN, s2n_connection_get_last_message_name(conn));
     PRINT0("s2n_conn_update_handshake_hashes()");
-    STACKTRACE;
+    // STACKTRACE;
     printf("%s", KNRM);
     if (s2n_handshake_is_hash_required(&conn->handshake, S2N_HASH_MD5)) {
         /* The handshake MD5 hash state will fail the s2n_hash_is_available() check
@@ -752,7 +752,6 @@ static int handshake_write_io(struct s2n_connection *conn)
             if (conn->actual_protocol_version == S2N_TLS13 && EXPECTED_MESSAGE_TYPE(conn) == CLIENT_CHANGE_CIPHER_SPEC) {
                 PRINT0("CLIENT_CHANGE_CIPHER_SPEC");
             } else {
-                PRINT0("Yup");
                 if (ACTIVE_MESSAGE(conn) == CLIENT_FINISHED) {
                     s2n_handle_tls13_secrets_update_application(conn);
 
@@ -771,7 +770,7 @@ static int handshake_write_io(struct s2n_connection *conn)
 
 
                 if (ACTIVE_MESSAGE(conn) == CLIENT_FINISHED) {
-                    printf("%s", KRED);
+                    printf("%s", KMAG);
                     printf("---- hs over ---\n");
                     // Derivate resumption master!!!
 
@@ -972,24 +971,11 @@ static int handshake_read_io(struct s2n_connection *conn)
             uint32_t length;
 
             uint32_t read_pointer = conn->in.read_cursor;
-            printf("read_pointer %d\n", read_pointer);
             GUARD(s2n_stuffer_read_uint8(&conn->in, &handshake_type));
             GUARD(s2n_stuffer_read_uint24(&conn->in, &length));
 
-            printf("handshake_type: %d\n", handshake_type);
-            printf("length: %d\n", length);
-
-            printf("available: %d\n", s2n_stuffer_data_available(&conn->in));
-            DEBUG_STUFFER(&conn->handshake.io);
             GUARD(s2n_stuffer_copy(&conn->in, &conn->handshake.io, length));
 
-            PRINT0("After\n");
-            DEBUG_STUFFER(&conn->in);
-            
-            printf("available2: %d\n", s2n_stuffer_data_available(&conn->in));
-
-            PRINT0("Execute HS App handler\n");
-            printf("??? current: %s! \n", s2n_connection_get_last_message_name(conn));
             GUARD(ACTIVE_STATE(conn).handler[conn->mode] (conn));
             GUARD(s2n_advance_message(conn));
 
@@ -999,8 +985,8 @@ static int handshake_read_io(struct s2n_connection *conn)
             struct s2n_blob handshake_record = {0};
             handshake_record.data = &conn->in.blob.data[read_pointer];
             handshake_record.size = 4 + length;
-            PRINT0("RECORD");
-            print_hex_blob(handshake_record);
+            // PRINT0("RECORD");
+            // print_hex_blob(handshake_record);
             notnull_check(handshake_record.data);
 
             /* update handshake hashes */
