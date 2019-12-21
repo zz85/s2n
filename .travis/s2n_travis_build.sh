@@ -16,10 +16,6 @@
 set -ex
 
 
-for i in `seq 1 5`; do curl http://wikipedia.org; done
-for i in `seq 1 5`; do curl https://wikipedia.org; done
-exit 1;
-
 # Defer overriding LD_LIBRARY_PATH so that the overriden paths don't interfere with test install scripts.
 # Some Test install scripts use curl commands to download files from S3, but those commands don't work when forced to load OpenSSL 1.1.1
 source .travis/s2n_override_paths.sh
